@@ -1,8 +1,11 @@
+list =["apple", "banana", "dig", "swap", "element", "elements", "apple"]
+
 def shift(alist):
     temp = alist[-1]
     for index in range(len(alist)-1, 0, -1):
         alist[index] = alist[index - 1]
     alist[0] = temp
+    print(alist)
     return alist
 
 def is_sorted(alist):
@@ -21,3 +24,8 @@ def has_dups(alist):
                 return True
     print("False")
     return False
+
+print(list)
+shift(list)
+is_sorted(list)
+has_dups(list)
