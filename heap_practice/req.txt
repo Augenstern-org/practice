@@ -1,0 +1,249 @@
+项目：小行星采矿站管理系统 — 详细要求 + 分步学习计划
+
+太棒的选择！下面给你一个完整、可实施的项目说明（包括验收标准），之后把项目拆成按步练习的任务，每一步都明确指出要练习的能力、实现提示与测试方法。直接按顺序做就行 —— 如果中间遇到问题，我可以帮你看代码或给更具体的修改建议。
+
+⸻
+
+一、项目总体要求（必须实现）
+
+目标：实现一个可交互的命令行“采矿站管理器”，能够创建 / 销毁采矿站与机器人，模拟能量消耗与矿石产出，能量随矿石回血（有上限），并用 new/delete 与 <memory> 的智能指针正确管理对象生命周期。
+
+核心类与职责：
+	•	PowerCore
+	•	成员：int power（当前能量），int capacity（上限），int regen_per_ore（每单位矿石回复能量）
+	•	方法：
+	•	bool consume(int amount)：尝试消耗能量，若能量不足返回 false（不改变能量）。
+	•	void recharge(int ore)：增加能量 = ore * regen_per_ore，但不超过 capacity。
+	•	void showStatus()：打印当前 power/capacity。
+	•	Robot（可继承）
+	•	成员：std::string id、std::string type、int energyCost（每 tick 消耗）、int oreOutput（每 tick 挖矿量）、连接到 PowerCore 的引用/指针
+	•	方法：virtual int work()：尝试工作一次（消耗能量并返回挖出的矿石数量）；当能源不足返回 0 并处于“停机”状态；showInfo()。
+	•	MiningStation
+	•	成员：名称、机器人容器（按步骤不同用裸指针或智能指针）、指向 PowerCore（共享）
+	•	方法：addRobot(...)、removeRobot(id)、tick()（所有机器人执行 work()，统计总矿石并回传给 PowerCore）、showStatus()。
+
+交互功能（命令行菜单）：
+	•	建立 / 删除 采矿站
+	•	查看采矿站详情（机器人列表、能源状态、累计矿石）
+	•	向指定采矿站添加机器人（参数：id、type、energyCost、oreOutput）
+	•	删除机器人（按 id）
+	•	手动运行 tick()（或以循环运行若干 tick）并显示每次 tick 的结果（每机器人消耗/产出、能源变化）
+	•	查看 PowerCore 的 use_count()（在 shared_ptr 实现里）
+
+边界与约束：
+	•	PowerCore::power 永远在 [0, capacity]
+	•	recharge 与 consume 要原子式更新（即不要在外部直接操作 power）
+	•	当机器人不能获得足够能量时，应当返回停机并在输出中标记
+	•	内存管理：不同阶段用不同方式（见分步）
+
+验收测试（最小）：
+	1.	创建采矿站并添加 2 个机器人，给定 PowerCore 初始 power=100, capacity=100, regen_per_ore=2。
+	2.	运行一个 tick：若机器人总体消耗 ≤ 恢复量，则 power 不减少或回增；若消耗过多则会降到 0 并让部分机器人停机。
+	3.	添加 / 删除 机器人 不产生内存泄漏（Step1 用 valgrind 或注意 delete，Step2+ 用智能指针自动管理）。
+	4.	在 shared_ptr 方案下，打印能源核心的引用计数 use_count() 与预期一致。
+
+⸻
+
+二、分步骤实现与学习建议（每步都写清楚“在练什么”）
+
+Step 0 — 准备（必做）
+
+目标：搭建项目骨架，熟悉编译与运行流程。
+	•	内容：
+	•	新建 main.cpp，建立 CMakeLists.txt 或一个简单的 g++ 编译命令。
+	•	创建空类文件 PowerCore.h/cpp, Robot.h/cpp, MiningStation.h/cpp，并包含到 main。
+	•	在 main 打印欢迎菜单（静态，不实现功能）。
+	•	练习内容：项目结构、编译流程、头文件与源文件组织、基础 I/O。
+	•	如何验证：能编译并运行输出菜单文本。
+
+⸻
+
+Step 1 — 裸指针版本（练 new / delete 与手动管理）
+
+目标：用 new / delete 实现所有对象（MiningStation、Robot、PowerCore 都用裸指针），实现基本功能（add/remove/tick/show），确保手动释放内存。
+
+要求：
+	•	MiningStation 中 std::vector<Robot*> robots;
+	•	PowerCore* core;（由创建站点时 new 一个 core 并传给机器人）
+	•	addRobot(Robot* r) 接受 new 出来的 Robot* 并 push_back
+	•	removeRobot(id) 要 delete 对应指针并从 vector 中移除（注意释放后把指针置 nullptr 或移出 vector）
+	•	MiningStation::tick()：
+	•	遍历 robots，调用 robot->work()（该方法会尝试用 core->consume()，若成功返回 oreOutput，否则返回 0）
+	•	累计总矿石 totalOre，在遍历结束后调用 core->recharge(totalOre)
+	•	打印每个机器人工作状况与最终 core 状态
+
+练习点：
+	•	正确使用 new / delete，避免悬挂指针与重复释放
+	•	手动维护容器内原始指针
+	•	理解对象所有权（谁负责释放）
+
+实现提示：
+	•	在 removeRobot 中用 erase-remove_if 模式删除：先 delete ptr，再 erase
+	•	每次创建 Robot 后，addRobot 不要再 delete（责任转移到容器）
+	•	在程序退出前手动遍历所有采矿站、机器人并 delete 掉（或写一个 clear()）
+
+测试：
+	•	添加几个机器人、删除一些、重复添加删除多次后用工具（valgrind）检查内存泄漏和重复释放。
+
+⸻
+
+Step 2 — unique_ptr 版本（练 std::unique_ptr）
+
+目标：把 Robot* 改为 std::unique_ptr<Robot>，MiningStation 使用 std::vector<std::unique_ptr<Robot>> 管理机器人，PowerCore 仍可用裸指针或也改为智能指针（建议改成 shared_ptr 或 unique_ptr 在后续步骤使用）。
+
+要求：
+	•	在添加机器人时使用 std::make_unique<Robot>(...) 并 move 进 addRobot。
+	•	removeRobot 只需从 vector 中移除元素（unique_ptr 会自动释放）。
+	•	MiningStation 的接口可以是 void addRobot(std::unique_ptr<Robot> r)。
+
+练习点：
+	•	理解 unique_ptr 的独占所有权与 std::move 的必要性
+	•	学会把裸指针容器替换为智能指针容器，减少手动 delete 的错误
+	•	练习修改接口以适配所有权语义（传参、返回值）
+
+实现提示：
+	•	addRobot(std::unique_ptr<Robot> r) { robots.push_back(std::move(r)); }
+	•	在 main 中：station.addRobot(std::make_unique<Robot>(...));
+	•	removeRobot 用 erase-remove_if，条件匹配 ->id，不需要手动 delete
+
+测试：
+	•	重复添加/删除确认没有内存泄漏（运行多次 tick，查看生命周期变化）
+	•	尝试复制 unique_ptr（应报编译错误），观察编译器如何强制你改变思路
+
+⸻
+
+Step 3 — shared_ptr：引入 PowerCore 的共享（练 std::shared_ptr）
+
+目标：把 PowerCore 作为共享资源（std::shared_ptr<PowerCore>），每个机器人都持有一个 shared_ptr 指向同一能源核心；MiningStation 也持有一个 shared_ptr 指向该核心（因此 use_count() 会反映引用数）。
+
+要求：
+	•	创建 auto core = std::make_shared<PowerCore>(initialPower, capacity, regen_rate);
+	•	在创建机器人时将 core 传入机器人构造（机器人保存为 std::shared_ptr<PowerCore> 或 std::weak_ptr，见变体）
+	•	在 tick() 中能打印 core.use_count()（注意 use_count() 包含所有 shared_ptr 拷贝）
+
+练习点：
+	•	学会 shared_ptr 的引用计数语义
+	•	了解 use_count() 的含义（并发环境注意不可依赖）
+	•	体验共享资源管理带来的便利与风险（循环引用需注意）
+
+实现提示：
+	•	若机器人需要观察但不拥有核心（例如监控器类），可以改为 std::weak_ptr，避免增加引用计数
+	•	避免机器人与核心间循环引用（例如核心持有机器人指针又机器人持有核心 shared_ptr 会导致泄漏；若必需，使用 weak_ptr 断开环）
+
+测试：
+	•	打印 use_count()：创建 core（1），把 core 传给 MiningStation（+1），再传给 n 个机器人（每个 +1），检查数值是否合理。
+	•	销毁一个采矿站或删除机器人后，use_count() 值应下降，且当所有引用消失时 core 析构（可以在 PowerCore 析构函数打印日志确认）。
+
+⸻
+
+Step 4 — 能源“自我供给”机制（核心功能）（练模拟与状态更新）
+
+目标：实现矿石产出 → 能源回复 的闭环逻辑；实现 tick 循环并处理停机条件与能量上限。
+
+要求：
+	•	在 Robot::work()：
+	•	判断 core->canRun(energyCost)（或尝试 consume）
+	•	若能量足够：core->consume(energyCost)，返回 oreOutput
+	•	若不够：返回 0，并标记机器人为停机（可在 Robot 内保存 bool active）
+	•	在 MiningStation::tick()：
+	•	遍历 robots，调用 work()，累计 totalOre
+	•	在遍历结束后执行 core->recharge(totalOre)
+	•	输出每个机器人的消耗/产出与 core 的前后能量值
+	•	能量边界：power 不超过 capacity；consume 不得使 power 负数
+
+练习点：
+	•	状态机/状态更新（机器人 active/inactive）
+	•	业务逻辑实现（能耗计算、产出累加、能量回复）
+	•	处理边界（上限/下限、整数溢出检查）
+
+实现提示：
+	•	做好日志输出，便于观察每次 tick 的细节
+	•	在 PowerCore::consume 中尽量一次性返回 bool，不要在外部直接调整 power
+	•	可以实现 tick(int n) 一次运行 n 个 tick 并在每个 tick 打印 summary
+
+测试：
+	•	设计若干场景（消耗 > 回收、等于、少于）并运行若干 tick，观察 power 变化是否符合预期
+	•	测试当 power 降为 0 时机器人停机，再添加矿石或手动充能使其恢复
+
+⸻
+
+Step 5 — 多态与机器人类型差异（练多态 / 继承）
+
+目标：把 Robot 设计为基类，不同类型机器人（Driller、Analyzer、Digger 等）继承并复写 work() 行为，体现多态性。
+
+要求：
+	•	class Robot { virtual int work() = 0; ... };
+	•	不同子类可有不同能耗 / 产出 / 特殊效果（比如 Analyzer 产出少但每产出带来更高 regen_per_ore bonus）
+	•	MiningStation 容器存储 std::vector<std::unique_ptr<Robot>>（多态与智能指针结合）
+
+练习点：
+	•	虚函数与抽象类
+	•	智能指针 + 多态（unique_ptr 持有 Derived）
+	•	设计扩展友好的类层次
+
+实现提示：
+	•	使用 std::make_unique<Driller>(...) 创建子类对象并 move 到容器
+	•	在 work() 返回挖矿量并在必要时通过 dynamic_cast 做特定子类处理（尽量避免频繁使用 dynamic_cast）
+
+测试：
+	•	添加不同子类机器人，观察行为差异
+	•	扩展一个新机器人的类型并确认系统无需修改核心逻辑即可运行（开闭原则测试）
+
+⸻
+
+Step 6 — 高级可选（练 weak_ptr、跨站共享与持久化）
+
+目标：实现更复杂的用例与工程实践能力训练。
+	•	使用 std::weak_ptr：
+	•	例如：监控模块或外部接口持有 weak_ptr 指向 PowerCore，在使用前 lock() 检查是否依然存在。
+	•	多个采矿站共享一个 PowerCore（跨站能源中心）
+	•	练习跨对象共享与协调（可能会出现竞争条件，若要并发须加锁）
+	•	持久化：保存/加载采矿站和机器人状态到文本文件（练文件 I/O）
+	•	异常与错误处理（比如重复 id、无效 id、IO 错误）
+
+练习点：
+	•	weak_ptr 的正确使用（避免空悬引用）
+	•	复杂所有权图（多个站点与众多机器人的共享关系）
+	•	把程序做成更“工程化”的产物（持久化、错误处理）
+
+测试：
+	•	模拟站点被销毁后 weak_ptr.lock() 返回空
+	•	保存状态、退出、重新加载并继续模拟（验证持久化完整性）
+
+⸻
+
+三、实现建议与常见坑（实战小贴士）
+	•	所有权要清晰：谁 new 谁 delete（Step1），以后用智能指针明确谁负责生命周期。
+	•	避免循环引用：如果 PowerCore 需要知道它有哪些机器人（不推荐），机器人持有 shared_ptr 而 PowerCore 持有 weak_ptr。
+	•	接口设计：优先以 value/uniqueptr/sharedptr 方式传参而非裸指针，清晰表达所有权。
+	•	不可信任外部数据：在 addRobot 时检查 id 唯一性；removeRobot 时要处理找不到的情况。
+	•	日志与断言：多打印状态（尤其是能量、use_count、每个机器人状态），写一些 assert 检查不变量（power 不为负、power <= capacity）。
+	•	逐步测试：每一步完成后写小 demo（1~2 个机器人、几个 tick），确认结果再继续。
+
+⸻
+
+四、验收示例（小剧本）
+	1.	建立 Titan-A，创建 PowerCore(power=500, capacity=1000, regen_per_ore=2)。
+	2.	添加 Driller(RB-001, energyCost=10, oreOutput=5) 和 Analyzer(RB-002, energyCost=5, oreOutput=3)。
+	3.	运行 10 个 tick，观察：power 随时间上下波动但不会超过 1000；use_count()= station + n robots。
+	4.	删除 RB-002，use_count() 减少；删除站点后 PowerCore 被销毁（检查析构日志）。
+
+⸻
+
+五、学习路线建议（如何按顺序练）
+	•	先完成 Step 0 → Step 1（掌握 new/delete）
+	•	再做 Step 2 → Step 3（迁移到智能指针，理解所有权与共享）
+	•	接着实现 Step 4（业务逻辑：耗能与回血）
+	•	然后做 Step 5（多态与扩展）
+	•	最后尝试 Step 6（weak_ptr、跨站共享、持久化）
+
+每一步实现后都至少做 3 个小用例测试（添加/删除/多 tick、异常情况、边界条件），并观察输出日志来验证状态是否正确。
+
+⸻
+
+如果你愿意，我现在可以：
+	•	A. 直接帮你写 Step 1（裸指针版本） 的完整示例代码；或
+	•	B. 帮你把整个项目拆成具体的每日任务清单（更细化的 TODO 列表）；或
+	•	C. 直接提供 unique_ptr + shared_ptr 的推荐实现模板（带注释）。
+
+你想接着哪一步？ 🚀
