@@ -1,7 +1,3 @@
-
-
-
-
 // 能源站分为4类，分别是基础能源站、快充能源站、效率能源站和高级能源站
 // 快充能源站充能速度快，效率能源站加工效率高，高级能源站则兼具两者优点
 // 不同的能源站有不同的初始容量、充能转化效率、加工效率和加工等级
@@ -24,13 +20,13 @@
 // 开采难度决定了至少需要多少机器人才能开采该矿石
 // 储量决定了开采到该矿石的概率，储量越少概率越低
 // 加工难度决定了允许加工该矿石的能源站等级
-// 低级矿石：开采难度5，储量60%，加工难度1，含能量10
-// 普通矿石：开采难度10，储量40%，加工难度2，含能量15
-// 高级矿石：开采难度20，储量20%，加工难度3，含能量20
-// 能量矿石：开采难度30，储量5%，加工难度3，含能量30
+// 低级矿石：开采人数2，储量60%，加工难度1，含能量5
+// 普通矿石：开采人数4，储量40%，加工难度2，含能量10
+// 高级矿石：开采人数6，储量20%，加工难度3，含能量20
+// 能量矿石：开采人数8，储量5%，加工难度3，含能量30
 // 
 // 
-// 每个机器人执行一次动作固定消耗10点能量
+// 每个机器人执行一次动作固定消耗1点能量
 // 机器人可以开采矿石并将其运送到能源站进行加工
 // 开采矿石需要消耗机器人的能量，开采难度越高所需的机器人越多
 // 机器人开采矿石时会有一定概率失败，失败则消耗能量但无法获得矿石
@@ -72,42 +68,30 @@
 #include <fstream>
 
 // 矿石类型定义
-struct Ore{
-    // 开采耗能-至少需要多少机器人才能开采
-    // 矿石储量-越少开采到的概率越低
-    // 加工难度-允许加工的能源站等级
-    // 所含能量-矿石所含的原始能量
-    int energy = 10;
-    double total_storage = 0.4;
-    int process_difficult = 2;
+class Ore{
+    protected:
+    //给出矿石的基本属性
+    //所需开采人数、储量、加工难度、含能量
+    int robot_in_need;
+    double storage;
+    int process_lvl;
+    int energy;
+
+    public:
+
+    Ore() =default;
+    Ore(int r, double s, int p, int e):robot_in_need(r), storage(s), process_lvl(p), energy(e){}
+    virtual ~Ore() = default;
+
+    const int getRobotInNeed() const {return robot_in_need;}
+    const double getStorage() const {return storage;}
+    const int getProcessLvl() const {return process_lvl;}
+    const int getEnergy() const {return energy;}
 };
 
-// 矿石等级
-struct Low_Ore : public Ore{
-    // 低开采难度，储量大，加工难度低
-    int energy = 5;
-    double total_storage = 0.6;
+class Common_Ore: public Ore{
+    //
 };
-
-struct High_Ore : public Ore{
-    // 高开采难度，储量少，加工难度大
-    int energy = 20;
-    double total_storage = 0.2;
-};
-
-//矿石具体种类
-struct Energy_Ore : public High_Ore{
-    // 一种特殊的矿石，能量密度极大
-    // 但含量少，且对能源站加工等级有要求
-    int energy = 30;
-    double total_storage = 0.05;
-};
-
-struct Common_Ore : public Low_Ore{
-    // 最普遍的矿石，但是等级较低
-    double total_storage = 0.8;
-};
-
 
 
 class PowerCore{
@@ -119,11 +103,11 @@ class PowerCore{
     
     public:
     // 构造函数
-    PowerCore() =default;
+    PowerCore() = default;
     PowerCore(int p = 100, int c = 500, int l = 2, int t = 1, double r = 0.8):
         power(p), capacity(c), lvl(l), type(t), retention_rate(r){}
 
-    ~PowerCore(){};
+    virtual ~PowerCore(){};
     
     // 获取能源站状态
 
@@ -171,6 +155,6 @@ class PowerCore{
     //能源站加工行为
     virtual void process(Ore ore_to_process){
         int final_energy;
-        recharge(round(ore_to_process.energy * retention_rate));
+        recharge(round(ore_to_process.getEnergy() * retention_rate));
     }
 };
