@@ -1,0 +1,39 @@
+Strings can not be modified.
+Strings can be summed -> concatenation.
+Strings can be multiplied by integers
+    (repeated concatenation)
+We can access a single character with the [] operator.
+We can slice strings with the [] operator.
+ Slice means to select only part of the string.
+ s[i:j] returns a string from the char
+        between pos. i and j (excluded)
+ s[i:j:step] returns a string from the char
+             beteween pos. i and j (excluded)
+             jumping by step
+             
+
+Methods for strings
+
+.isalpha()      -> returns True if the string
+                   only contains alphabetic chars
+.isdigit()      -> returns True if the string
+                    only contains numeric char
+.isalnum()      -> returns True if the string
+                    contains numeric or alphabetical char
+.isupper/.islower -> returns True if the string
+                    only contains capital/non-capital char
+.upper/lower    -> returns a new string with
+                    all the characters capital/non-capital
+.strip/lstrip/rstrip -> return a new string with
+                    any whitespace on the left and
+                    on the right removed (left or right)
+.replace(old, new) -> Return a copy with all occurrences of
+                    substring old replaced by new.
+.split()-> With no paramater, return a list of
+           the substrings in the string, separated
+           by any space character
+.split(sep)-> Return a list of the substrings in the string,
+               using sep as the separator string
+.count(word) -> Return the number of occurrences
+                 of word in the string
+    

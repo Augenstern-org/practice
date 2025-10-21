@@ -1,0 +1,29 @@
+Lists are modifiable.
+Lists can be summed -> concatenation.
+Lists can be multiplied by integers
+    (repeated concatenation)
+We can access a single element with the [] operator.
+We can slice lists with the [] operator.
+ Slice means to select only part of the list.
+ s[i:j] returns a list with the elements
+        between pos. i and j (excluded)
+ s[i:j:step] returns a list wth the elements
+             beteween pos. i and j (excluded)
+             jumping by step
+             
+Methods for lists.
+.append(obj)     add a new element at the  end
+                 of the list
+.insert(i, obj)  add a new element in
+                 position  of the list
+.extend(alist)   appends all the elements of
+                 alist to the end of the list
+.remove(obj)     removes obj from the list
+                 no return (it can generate error)
+.pop() (no param) remove and returns the last
+                 element of the list
+.pop(n) (n is int) remove and returns the 
+                 element in position i of the list                 
+.sort()          sorts the list in ascending order
+.sort(reverse=True) sorts the list in 
+                     descending order

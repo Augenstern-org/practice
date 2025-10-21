@@ -17,38 +17,16 @@ def file_char_counter(filename):
     print(n)
     return n
 
-def file_longest_word(filename):
-    word = ""
-    list = []
-    temp = ""
-    with open(filename, 'r') as f:
-        while True:
-            c = f.read(1)
-            if not c:
-                if len(word) < len(temp):
-                    word = temp
-                temp = ""
-    print(word, "in file:", filename)
-    return word
-
-test = "test.txt"
-
-#file_char_counter(test)
-
-#file_longest_word(test)
-
-
-
-
 
 def cleand(text):
-    to_replace = []                         # 新建一个列表用来维护需要替换的字符
-    for char in text:                       # 开始逐字读取传入变量text的值
-        if not char.isalpha():              # 如果当前字符不是字母
-            if char not in to_replace:          # 并且这个字符不再列表之中
-                to_replace.append(char)         # 那么添加这个字符到列表之中
-                                            # （在列表中则不进行任何操作）
-    for char in to_replace:                 # 将传入变量text之中的所有的非字母字符替换成空格
+    to_replace = []
+    for char in text:
+        if not char.isalpha():
+            if char not in to_replace:
+                to_replace.append(char)
+                #print("add", char,"into list")
+    #print(to_replace)
+    for char in to_replace:
         text = text.replace(char, ' ')
 
 # 效果大概是：
@@ -56,5 +34,26 @@ def cleand(text):
 # 输出应该为：
 # "This is an apple OK "
 
+
+def file_longest_word(filename):
+    word = ""
+    with open(filename, 'r') as file:
+        for line in file:
+            cleand(line)
+            temp = ""
+            for t in line:
+                if t == " ":
+                    if len(temp) >= len(word):
+                        word = temp
+                    temp = ""
+                    continue
+                temp += t
+    print('"', word, '"', " in file: ", '"', filename, '"', sep = "")
+
+test = "test2.txt"
+
+#file_char_counter(test)
+
+file_longest_word(test)
 
 

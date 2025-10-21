@@ -1,0 +1,51 @@
+Files: like a book that must be open
+ open gets the name (or the path)
+      of the file as a string
+      returns a 'file' object.
+      
+      Open default operation is READ.
+      open(filename, 'r') opens in READ mode
+      open(filename, 'w') opens in WRITE mode
+      open(filename, 'a') opens in APPEND mode
+          (it will not overwrite the previous content)
+      
+      Remember that a file MUST be closed.
+      Better TO use the with statement
+      with open(filename) as file:
+        # REMEMBER this opens a new
+        # block of instructions!!
+        
+      
+      
+        
+     
+
+Reading files-> returns string 
+- file.read()   no options
+     the whole file is read in one singl operation
+
+- file.read (n)  with a number
+     just n bytes (characters) are read
+
+- file.readline() no options
+     returns a string reading up to the first \n character
+
+- file.readlines() no options
+     returns a list with each line as a string
+
+- the for statement: for line in file
+     begins a new block of instructions to be
+     repeated for every line of the file
+
+Moving in an open file:
+- seek (n)  with a number
+     moves the pointer within the content of
+     the open file
+
+
+Writing into a file
+- file.write(string)    writes string into the file
+                        (without any added character)
+- file.writelines(alist) writes all the strings in list
+                         into the file
+                         (without any added character)

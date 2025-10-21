@@ -1,0 +1,6 @@
+apple
+avocado
+banana
+grapefruit
+kiwi
+peach
