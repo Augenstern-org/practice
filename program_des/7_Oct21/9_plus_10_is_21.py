@@ -24,6 +24,22 @@ def sigh_num_to_word(filename):
         i = input.readline()
         output.writelines(o)
 
-sigh_num_to_word("test_input.txt")
+#sigh_num_to_word("test_input.txt")
+
+def split_and_sum(filename):
+    int_sum = 0
+    float_sum = 0.0
+    with open(filename, 'r') as file:
+        for line in file:
+            list = line.split(" ")
+            for index in list:
+                try:
+                    int_sum += int(index)
+                except ValueError:
+                    float_sum += float(index)
+    print(int_sum, float_sum)
+
+sum = "int_float.txt"
+#split_and_sum(sum)
 
 
