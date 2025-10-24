@@ -66,12 +66,15 @@
 #include <memory>
 #include <iostream>
 #include <fstream>
+#include <string>
 
 // 矿石类型定义
 class Ore{
     protected:
     //给出矿石的基本属性
     //所需开采人数、储量、加工难度、含能量
+    // 普通矿石：开采人数4，储量40%，加工难度2，含能量10
+
     int robot_in_need;
     double storage;
     int process_lvl;
@@ -79,8 +82,9 @@ class Ore{
 
     public:
 
-    Ore() =default;
-    Ore(int r, double s, int p, int e):robot_in_need(r), storage(s), process_lvl(p), energy(e){}
+    Ore(int r = 4, double s = 0.4, int p = 2, int e = 10):
+        robot_in_need(r), storage(s), process_lvl(p), energy(e){}
+    
     virtual ~Ore() = default;
 
     const int getRobotInNeed() const {return robot_in_need;}
@@ -90,71 +94,137 @@ class Ore{
 };
 
 class Common_Ore: public Ore{
-    //
+    // 低级矿石：开采人数2，储量60%，加工难度1，含能量5
+
+    public:
+    Common_Ore(): Ore(2, 0.6, 1, 5){}
+};
+
+class Advanced_Ore: public Ore{
+    // 高级矿石：开采人数6，储量20%，加工难度3，含能量20
+
+    public:
+    Advanced_Ore(): Ore(6, 0.2, 3, 20){}
+};
+
+class Energy_Ore: public Ore{
+    // 能量矿石：开采人数8，储量5%，加工难度3，含能量30
+
+    public:
+    Energy_Ore(): Ore(8, 0.05, 3, 30){}
 };
 
 
 class PowerCore{
+    protected:
+    std::string name = "Basic Power Core";
+    // 基础能源站：初始容量500，充能转化效率60%，加工效率80%，加工等级2，建造成本为1、时间为1000 tick
     int power;
     int capacity;
+    double charge_efficiency;
+    double process_efficiency;
     int lvl;
-    int type;
-    double retention_rate;
+    int build_cost;
+    int build_time;
     
     public:
     // 构造函数
-    PowerCore() = default;
-    PowerCore(int p = 100, int c = 500, int l = 2, int t = 1, double r = 0.8):
-        power(p), capacity(c), lvl(l), type(t), retention_rate(r){}
+    PowerCore(int p = 100, int c = 500, double ce = 0.6, double r = 0.8, 
+              int l = 2, int bc = 1, int bt = 1000):
+                    power(p), capacity(c), charge_efficiency(ce), process_efficiency(r), 
+                    lvl(l), build_cost(bc), build_time(bt){}
 
-    virtual ~PowerCore(){};
+    virtual ~PowerCore() = default;
     
     // 获取能源站状态
 
-    /*
-    const int getPower() const {return power;}
-    const int getCapacity() const {return capacity;}
-    const int getLevel() const {return lvl;}
-    */
-    virtual void showStatus() const {
-        std::cout << "[PowerCore]\nPower: " << power 
-                  << " / Capacity: " << capacity 
-                  << " | Level: " << lvl << std::endl;
-    }
+        std::string getName() const {return name;}
+    int getPower() const {return power;}
+    int getCapacity() const {return capacity;}
+    double getChargeEfficiency() const {return charge_efficiency;}
+    double getProcessEfficiency() const {return process_efficiency;}
+    int getLevel() const {return lvl;}
+    int getBuildCost() const {return build_cost;}
+    int getBuildTime() const {return build_time;}
+
+    
 
     //能源站状态检查
-    const int checkLevel() const {
-        if(lvl <= 0 || lvl > 3){
-            std::cout << "Level is illegal! Set it as ";
-            if(lvl <= 0){
-                std::cout << "1" << std::endl;
-                return -1;
-            }
-            else{
-                std::cout << "3" << std::endl;
-                return 1;
-            }
-        }
-        return 0;
-    }
-    const bool tryProcess(int ore_lvl) const {return lvl >= ore_lvl? true: false;}
+
+    const bool canProcess(int ore_lvl) const {return lvl >= ore_lvl? true: false;}
 
     //能源站状态更新
-    void updateLevel(int lvl_update_to = 2, int condition = 0){
-        if(condition = 0) {lvl = lvl_update_to;}
-        if(condition = 1) {lvl = 3;}
-        if(condition = -1){lvl = 1;}
-        checkLevel();
-    }
+
+    // void updateLevel(int lvl_update_to = 2, int condition = 0){
+    //     if(condition = 0) {lvl = lvl_update_to;}
+    //     if(condition = 1) {lvl = 3;}
+    //     if(condition = -1){lvl = 1;}
+    //     checkLevel();
+    // }
+
     virtual void consume(int energy){
         power = std::max(power - energy, 0);
     }
+
     virtual void recharge(int energy) {
         power = std::min(power + energy, capacity);
     }
+
     //能源站加工行为
-    virtual void process(Ore ore_to_process){
-        int final_energy;
-        recharge(round(ore_to_process.getEnergy() * retention_rate));
+    virtual void process(const Ore& ore_to_process){
+        if(canProcess(ore_to_process.getProcessLvl())){
+            int gain_energy = static_cast<int>(ore_to_process.getEnergy() * process_efficiency);
+            recharge(gain_energy);  //成功处理
+        }else{
+            // throw 
+            // 抛出一个异常，用来指示该能源站无法加工该矿石
+            // 标记之后将矿石返还，并且交给其他能源站
+        }
     }
 };
+
+class FastRecharge_PowerCore: public PowerCore{
+    // 快充能源站：初始容量600，充能转化效率80%，加工效率60%，加工等级1，建造成本为2、时间为2000 tick
+    
+    public:
+    FastRecharge_PowerCore(): PowerCore(200, 600, 0.8, 0.6, 1, 2, 2000){
+        name = "Fast Recharge Power Core";
+    }
+
+};
+
+class Efficient_PowerCore: public PowerCore{
+    // 效率能源站：初始容量400，充能转化效率50%，加工效率90%，加工等级3，建造成本为2、时间为3000 tick
+    
+    public:
+    Efficient_PowerCore(): PowerCore(100, 400, 0.5, 0.9, 3, 2, 3000){
+        name = "Efficient Power Core";
+    }
+};
+
+class Ultimate_PowerCore: public PowerCore{
+    // 高级能源站：初始容量700，充能转化效率80%，加工效率90%，加工等级3，建造成本为3、时间为5000 tick
+
+    public:
+    Ultimate_PowerCore(): PowerCore(300, 700, 0.8, 0.9, 3, 3, 5000){
+        name = "Ultimate Power Core";
+    }
+};
+
+
+using PC        =       PowerCore;
+using FR_PC     =       FastRecharge_PowerCore;
+using E_PC      =       Efficient_PowerCore;
+using U_PC      =       Ultimate_PowerCore;
+
+// 接口部分
+void showPowerCoreStatus(const PowerCore& pc) {
+        std::cout << "[" << pc.getName() << "] "
+                  << "\nPower: " << pc.getPower() 
+                  << " / Capacity: " << pc.getCapacity() 
+                  << " | Level: " << pc.getLevel() 
+                  << "\n Retention Rate: " << pc.getProcessEfficiency()
+                  << " | Charge Efficiency: " << pc.getChargeEfficiency()
+                  << std::endl;
+
+}
