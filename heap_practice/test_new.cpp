@@ -67,6 +67,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <stdexcept>
 
 // 矿石类型定义
 class Ore{
@@ -172,13 +173,17 @@ class PowerCore{
 
     //能源站加工行为
     virtual void process(const Ore& ore_to_process){
-        if(canProcess(ore_to_process.getProcessLvl())){
-            int gain_energy = static_cast<int>(ore_to_process.getEnergy() * process_efficiency);
-            recharge(gain_energy);  //成功处理
-        }else{
-            // throw 
-            // 抛出一个异常，用来指示该能源站无法加工该矿石
-            // 标记之后将矿石返还，并且交给其他能源站
+        try{
+            if(canProcess(ore_to_process.getProcessLvl())){
+                int gain_energy = static_cast<int>(ore_to_process.getEnergy() * process_efficiency);
+                recharge(gain_energy);  //成功处理
+            }else{
+                // 抛出一个异常，用来指示该能源站无法加工该矿石
+                // 标记之后将矿石返还，并且交给其他能源站——即交由其他catch子句进行处理
+                throw std::runtime_error("The powercore CAN NOT process this ore.");
+            }
+        }catch(std::runtime_error){
+            //有点难，先学习一下...
         }
     }
 };
