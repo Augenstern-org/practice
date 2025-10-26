@@ -1,0 +1,304 @@
+在以下例子中展示了异常抛出
+
+#include <iostream>
+using namespace std;
+ 
+double division(int a, int b)
+{
+   if( b == 0 )
+   {
+      throw "Division by zero condition!";
+   }
+   return (a/b);
+}
+ 
+int main ()
+{
+   int x = 50;
+   int y = 0;
+   double z = 0;
+ 
+   try {
+     z = division(x, y);
+     cout << z << endl;
+   }catch (const char* msg) {
+     cerr << msg << endl;
+   }
+ 
+   return 0;
+}
+
+---->这表明catch子句只会响应throw语句抛出的对象类型，而不会关心对象的值。
+
+
+
+可以采用stl中的<stdexcept>来更简单的使用异常处理：
+
+std::exception 	            该异常是所有标准 C++ 异常的父类。
+std::bad_alloc 	            该异常可以通过 new 抛出。
+std::bad_cast 	            该异常可以通过 dynamic_cast 抛出。
+std::bad_typeid 	        该异常可以通过 typeid 抛出。
+std::bad_exception 	        这在处理 C++ 程序中无法预期的异常时非常有用。
+std::logic_error 	        理论上可以通过读取代码来检测到的异常。
+std::domain_error 	        当使用了一个无效的数学域时，会抛出该异常。
+std::invalid_argument 	    当使用了无效的参数时，会抛出该异常。
+std::length_error 	        当创建了太长的 std::string 时，会抛出该异常。
+std::out_of_range 	        该异常可以通过方法抛出，例如 std::vector 和 std::bitset<>::operator[]()
+std::runtime_error 	        理论上不可以通过读取代码来检测到的异常。
+std::overflow_error 	    当发生数学上溢时，会抛出该异常。
+std::range_error 	        当尝试存储超出范围的值时，会抛出该异常。
+std::underflow_error 	    当发生数学下溢时，会抛出该异常。
+
+
+
+同样，也可以通过继承和重载 exception 类来定义新的异常。
+下面的演示了如何使用 std::exception 类来实现自己的异常：
+
+#include <iostream>
+#include <exception>
+using namespace std;
+ 
+struct MyException : public exception
+{
+  const char * what () const throw ()
+  {
+    return "C++ Exception";
+  }
+};
+ 
+int main()
+{
+  try
+  {
+    throw MyException();
+  }
+  catch(MyException& e)
+  {
+    std::cout << "MyException caught" << std::endl;
+    std::cout << e.what() << std::endl;
+  }
+  catch(std::exception& e)
+  {
+    //其他的错误
+  }
+}
+
+运行结果为：
+>>> MyException caught
+>>> C++ Exception
+
+在这里，what() 是异常类提供的一个公共方法，它已被所有子异常类重载。这将返回异常产生的原因。
+
+##################################################################################
+
+异常的重新抛出
+
+有可能单个的catch不能完全处理一个异常，在进行一些校正处理以后，希望再交给更外层的调用链函数来处理，
+catch则可以通过重新抛出将异常传递给更上层的函数进行处理。
+
+double Division(int a, int b) 
+{
+	// 当b == 0时抛出异常
+	if (b == 0)
+	{
+		throw "Division by zero condition!";
+	}
+	return (double)a / (double)b;
+}
+
+void Func()
+{
+	int* p1 = new int[10];
+	int len, time;
+	cin >> len >> time;
+
+	// 如果Division()中出现异常
+	// 那么就会直接跳转到main()函数中对应的catch()中
+	// 但是Func函数中还有对应的堆的资源p1还没有被释放，因此就会造成内存泄漏
+	cout << Division(len, time) << endl;
+
+	cout << "delete []" << p1 << endl;
+	delete[] p1;
+}
+
+int main()
+{
+	try
+	{
+		Func();
+	}
+	catch (const char* errmsg)
+	{
+		cout << errmsg << endl;
+	}
+
+	return 0;
+}
+// 我们输入：10 0
+// 打印结果为：Division by zero condition!
+
+
+
+###解决方法1
+double Division(int a, int b) 
+{
+	// 当b == 0时抛出异常
+	if (b == 0)
+	{
+		throw "Division by zero condition!";
+	}
+	return (double)a / (double)b;
+}
+
+void Func()
+{
+	int* p1 = new int[10];
+    
+	try 
+    {
+		int len, time;
+		cin >> len >> time;
+		cout << Division(len, time) << endl;
+	}
+	catch (const char* errmsg)
+	{
+		// 如果函数Division抛出异常，此处捕获异常并进行处理
+		// 那么就会继续执行Func函数的后续代码
+		// 这样就不会造成内存泄漏了
+		cout << errmsg << endl;
+	}
+	
+	cout << "delete []" << p1 << endl;
+	delete[] p1;
+}
+
+int main()
+{
+	try
+	{
+		Func();
+	}
+	catch (const char* errmsg)
+	{
+		cout << errmsg << endl;
+	}
+
+	return 0;
+}
+
+
+
+###解决方法2
+double Division(int a, int b) 
+{
+	// 当b == 0时抛出异常
+	if (b == 0)
+	{
+		throw "Division by zero condition!";
+	}
+	return (double)a / (double)b;
+}
+
+void Func()
+{
+	int* p1 = new int[10];
+	try 
+    {
+		int len, time;
+		cin >> len >> time;
+		cout << Division(len, time) << endl;
+        
+        // func()
+        // 假设此处还存在一个函数 func(),也会抛出异常，如果按照解决方案二的方法
+        // 那就需要写多个catch，那样就会十分的麻烦，因此我们使用catch (...) 可以捕获任意的异常
+        // 这样func()和Division() 抛出的异常都可以被catch (...)捕获，并重新抛出
+	}
+	catch (...) // catch (...) 可以捕获任意的异常
+	{
+		cout << "delete []" << p1 << endl;
+		delete[] p1;
+        
+		// 重新抛出异常,再重新抛出异常之前，需要将后续的代码全部执行
+		throw;   // 重新抛出，这块没有抛出对象，表示捕获到什么就抛出什么
+	}
+	
+	cout << "delete []" << p1 << endl;
+	delete[] p1;
+}
+
+int main()
+{
+	try
+	{
+		Func();
+	}
+	catch (const char* errmsg)
+	{
+		cout << errmsg << endl;
+		// 记录日志，统一处理
+	}
+
+	return 0;
+}
+
+##改良：
+double Division(int a, int b) 
+{
+	// 当b == 0时抛出异常
+	if (b == 0)
+	{
+		throw "Division by zero condition!";
+	}
+	return (double)a / (double)b;
+}
+
+void Func()
+{
+	int* p1 = new int[10];
+	try 
+    {
+		int len, time;
+		cin >> len >> time;
+		cout << Division(len, time) << endl;
+        
+        // func()
+        // 假设此处还存在一个函数 func(),也会抛出异常，如果按照解决方案二的方法
+        // 那就需要写多个catch，那样就会十分的麻烦，因此我们使用catch (...) 可以捕获任意的异常
+        // 这样func()和Division() 抛出的异常都可以被catch (...)捕获，并重新抛出
+	}
+	catch (...) // catch (...) 可以捕获任意的异常
+	{
+		cout << "delete []" << p1 << endl;
+		delete[] p1;
+        
+		// 重新抛出异常,再重新抛出异常之前，需要将后续的代码全部执行
+		throw;   // 重新抛出，这块没有抛出对象，表示捕获到什么就抛出什么
+	}
+	
+	cout << "delete []" << p1 << endl;
+	delete[] p1;
+}
+
+int main()
+{
+	try
+	{
+		Func();
+	}
+	catch (const char* errmsg)
+	{
+		cout << errmsg << endl;
+		// 记录日志，统一处理
+	}
+
+	return 0;
+}
+
+
+##########################################################################
+
+抛出异常对象
+
+抛出异常对象后，会生成一个异常对象的拷贝。
+因为抛出的异常对象可能是一个临时对象，所以会生成一个拷贝对象，这个拷贝的临时对象会在被catch以后销毁。
+（这里的处理类似于函数的传值返回）
