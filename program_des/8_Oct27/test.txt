@@ -3,4 +3,4 @@ hello world
 identify 
 AMD Ryzen 9950x
 aproach to it
-hello AMD
+hello AM
