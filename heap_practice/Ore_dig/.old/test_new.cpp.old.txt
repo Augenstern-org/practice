@@ -182,7 +182,9 @@ class PowerCore{
     }
 
     // 接收部分
-    virtual void receiveOre(){}
+    virtual void receiveOre(){
+        
+    }
 
 
     // 处理部分
