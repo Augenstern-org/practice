@@ -139,7 +139,7 @@ class PowerCore{
     
     // 获取能源站状态
 
-        std::string getName() const {return name;}
+    std::string getName() const {return name;}
     int getPower() const {return power;}
     int getCapacity() const {return capacity;}
     double getChargeEfficiency() const {return charge_efficiency;}
@@ -172,6 +172,20 @@ class PowerCore{
     }
 
     //能源站加工行为
+
+    virtual void processOneTick(const Ore& ore_to_process){
+        // 这个函数需要完成一个模拟周期内的所有行为，包括：
+        // 1.接收矿石
+        // 2.处理矿石
+        // 3.返回无法处理的矿石
+
+    }
+
+    // 接收部分
+    virtual void receiveOre(){}
+
+
+    // 处理部分
     virtual void process(const Ore& ore_to_process){
         try{
             if(canProcess(ore_to_process.getProcessLvl())){
@@ -182,8 +196,10 @@ class PowerCore{
                 // 标记之后将矿石返还，并且交给其他能源站——即交由其他catch子句进行处理
                 throw std::runtime_error("The powercore CAN NOT process this ore.");
             }
-        }catch(std::runtime_error){
-            //有点难，先学习一下...
+        }catch(...){
+            // 不对异常进行处理
+            // 同时将异常重新抛出，以便机器人交由其他能源站处理
+            throw;
         }
     }
 };
@@ -231,5 +247,5 @@ void showPowerCoreStatus(const PowerCore& pc) {
                   << "\n Retention Rate: " << pc.getProcessEfficiency()
                   << " | Charge Efficiency: " << pc.getChargeEfficiency()
                   << std::endl;
-
 }
+
