@@ -26,6 +26,13 @@ public:
         return nullptr;
     }
 
+    const bool is_current_mailbox(std::string mailbox_addr){
+        if((letter_ -> getRecipient()) == mailbox_addr){
+            return true;
+        }
+        return false;
+    }
+
 };
 
 #endif

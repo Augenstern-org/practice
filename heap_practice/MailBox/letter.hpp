@@ -18,7 +18,7 @@ public:
         std::cout << content << std::endl;
     }
 
-    const std::string getAddrToDeliver() const {return recipient;}
+    const std::string getRecipient() const {return recipient;}
 
 };
 
