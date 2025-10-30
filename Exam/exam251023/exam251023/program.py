@@ -16,9 +16,9 @@ IMPORTANT: set DEBUG = True in `grade.py` to improve debugging; but
 remember that recursion is tested (and graded) only if DEBUG = False
 """
 
-name = "Dingbang"
-surname = "Li"
-student_id = "202521090092"
+name = "***"
+surname = "*"
+student_id = "2****"
 
 
 # %% ----------------------------------- FUNC1 ------------------------- #
