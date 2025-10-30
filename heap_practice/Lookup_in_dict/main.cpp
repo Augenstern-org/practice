@@ -191,6 +191,7 @@ int main(){
         std::cerr << "Can not open!" <<std::endl;
         return 1;
     }
+    
     inf.close();
 
     auto editor = Editor("Neuroil");
