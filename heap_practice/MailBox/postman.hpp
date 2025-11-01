@@ -2,7 +2,6 @@
 
 #define POSTMAN_HPP
 #include "letter.hpp"
-#include "mailbox.hpp"
 #include <string>
 #include <memory>
 

@@ -25,7 +25,7 @@ def func2(L):
 L = [ [[]], [], [[[]]], [[]], [[[[]]]], [], [[[]]]]
 #func2(L)
 
-counter = 1
-def f3(lst, c):
-    global c = 1
-    if is
+def add(a: int, b: int):
+    return a+b
+
+
