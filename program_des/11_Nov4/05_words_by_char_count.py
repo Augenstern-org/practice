@@ -35,5 +35,22 @@ def filter_words_by_count(words, k, S):
 
 def select_words_by_char_count(words, k, S):
     # Your implementation here
-    
+    # count ch
+    counter = [] # tuple list
+    for word in words:
+        temp = 0
+        for ch in word:
+            if ch in S:
+                temp += 1
+        counter.append((word, temp))
+    # filter words
+    filtered_list = filter(lambda x: x[1] >= k, counter)
+    # generate dict
+    return dict(filtered_list)
     pass
+
+words = ['hello', 'world', 'language', 'apple', 'orange', 'banana', 'friend', 'education', 'tiger']
+k = 3
+S = {'a','e','i','o','u'}
+
+print(select_words_by_char_count(words, k, S))
