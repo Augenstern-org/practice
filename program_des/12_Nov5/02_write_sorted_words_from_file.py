@@ -24,6 +24,12 @@ banana, orange, apple, kiwi, zoo
 and the function returns: 5
 '''
 
+def vowels_in_word(word):
+    pass
+
+lambda x: [len(x), vowels_in_word(x), x.lower()]
+
 def write_sorted_words_from_file(input_path, output_path):
     # Your implementation here
     pass
+
