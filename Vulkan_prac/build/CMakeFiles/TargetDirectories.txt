@@ -1,0 +1,3 @@
+D:/Program_Self/practice/Vulkan_prac/build/CMakeFiles/vk_prac.dir
+D:/Program_Self/practice/Vulkan_prac/build/CMakeFiles/edit_cache.dir
+D:/Program_Self/practice/Vulkan_prac/build/CMakeFiles/rebuild_cache.dir
