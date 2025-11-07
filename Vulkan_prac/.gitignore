@@ -1,0 +1,26 @@
+# 忽略 CMake 构建文件
+/build/
+/build*/
+/CMakeFiles/
+/CMakeCache.txt
+/Makefile
+/*.sln
+/*.vcxproj*
+/compile_commands.json
+
+# 忽略 VSCode 配置（如果不想共享）
+.vscode/
+.vs/
+
+# 忽略生成的二进制文件
+*.exe
+*.dll
+*.lib
+*.a
+*.obj
+*.o
+
+# 忽略临时文件
+*.log
+*.tmp
+*.bak
