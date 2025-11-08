@@ -2,7 +2,14 @@ cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_TOOLCHAIN_FILE "C:/VCPKG/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(CMAKE_TOOLCHAIN_FILE "C:/VCPKG/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(CMAKE_TOOLCHAIN_FILE "/home/evil/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+endif()
 
 project(VULKAN_PRAC)
 
