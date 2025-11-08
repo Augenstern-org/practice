@@ -7,6 +7,7 @@
 #include <vector>
 #include <cstring>
 #include <cstdlib>
+#include <map>
 
 // 定义窗口的宽度和高度
 const uint32_t WIDTH = 800;
@@ -86,9 +87,7 @@ private:
         std::vector<VkPhysicalDevice> devices(deviceCount); // 分配一个数组来保存所有 VkPhysicalDevice 句柄
         vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-        bool isDeviceSuitable(VkPhysicalDevice device) {   // 判断该设备是否可用
-            return true;
-        }
+        // 这一步是找到设备列表中第一个可用的设备
         for (const auto& device : devices) {
             if (isDeviceSuitable(device)) {
                 physicalDevice = device;
@@ -98,8 +97,61 @@ private:
 
         if (physicalDevice == VK_NULL_HANDLE) {
             throw std::runtime_error("failed to find a suitable GPU!");
-}
+        }
     }
+
+// --------------------------------------------------------------------------------------
+//     也可以采用评分制，选择评分最高的一个设备
+//
+// void pickPhysicalDevice() {
+//
+//     ...
+//   
+//     Use an ordered map to automatically sort candidates by increasing score
+//
+//     std::multimap<int, VkPhysicalDevice> candidates;
+//
+//     for (const auto& device : devices) {
+//         int score = rateDeviceSuitability(device);
+//         candidates.insert(std::make_pair(score, device));
+//     }
+//
+//     Check if the best candidate is suitable at all
+//
+//     if (candidates.rbegin()->first > 0) {
+//         physicalDevice = candidates.rbegin()->second;
+//     } else {
+//         throw std::runtime_error("failed to find a suitable GPU!");
+//     }
+// }
+//
+// int rateDeviceSuitability(VkPhysicalDevice device) {
+//     ...
+//
+//     int score = 0;
+//
+//     // Discrete GPUs have a significant performance advantage
+//     if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+//         score += 1000;
+//     }
+//
+//     // Maximum possible size of textures affects graphics quality
+//     score += deviceProperties.limits.maxImageDimension2D;
+//
+//     // Application can't function without geometry shaders
+//     if (!deviceFeatures.geometryShader) {
+//         return 0;
+//     }
+//
+//     return score;
+// }
+//
+// --------------------------------------------------------------------------------------
+
+
+    bool isDeviceSuitable(VkPhysicalDevice device) {   // 判断该设备是否可用
+            return true;
+        }
 
     // 初始化 Vulkan，首先创建实例，并设置调试回调
     void initVulkan() {
@@ -141,8 +193,8 @@ private:
 
         // 填充应用程序信息
         VkApplicationInfo appInfo{};
-        appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO; // 类型标识
-        appInfo.pApplicationName = "Hello Triangle";         // 应用程序名称
+        appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO; 
+        appInfo.pApplicationName = "Hello Triangle";
         appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0); // 应用程序版本
         appInfo.pEngineName = "No Engine";                   // 引擎名称
         appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);    // 引擎版本
