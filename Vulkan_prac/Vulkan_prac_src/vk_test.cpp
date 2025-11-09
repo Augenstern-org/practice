@@ -135,6 +135,28 @@ void HelloTriangleApplication::populateDebugMessengerCreateInfo(VkDebugUtilsMess
     createInfo.pfnUserCallback = debugCallback;
 }
 
+void HelloTriangleApplication::pickupPhysicalDevice(){
+    uint32_t deviceCount;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    if (deviceCount == 0){
+        throw std::runtime_error("No device available!");
+    }
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+    for(const auto& PhysicalDevice: devices){
+        if (isDeviceSuitable(PhysicalDevice)){
+            device = PhysicalDevice;
+            break;
+        }
+    }
+    //
+}
+
+bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice device){
+    //
+}
+
+// ---- Debug 相关 ----
 void HelloTriangleApplication::setupDebugMessenger() {
     if (!enableValidationLayers) return;
 

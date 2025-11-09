@@ -18,6 +18,7 @@ private:
     // Vulkan 相关对象
     VkInstance instance{};
     VkDebugUtilsMessengerEXT debugMessenger{};
+    VkPhysicalDevice device;
 
     // 初始化与清理
     void initWindow();
@@ -31,6 +32,9 @@ private:
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     std::vector<const char*> getRequiredExtensions();
     bool checkValidationLayerSupport();
+
+    // Vulkan 物理设备
+    void pickupPhysicalDevice();
 
     // 调试回调函数
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
