@@ -35,6 +35,7 @@ private:
 
     // Vulkan 物理设备
     void pickupPhysicalDevice();
+    bool isDeviceSuitable(VkPhysicalDevice device);
 
     // 调试回调函数
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
