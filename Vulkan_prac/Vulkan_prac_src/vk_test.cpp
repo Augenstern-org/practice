@@ -134,14 +134,31 @@ bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice currentDevice){
     VkPhysicalDeviceFeatures deviceFeatures;         // 储存设备支持的特性
     vkGetPhysicalDeviceProperties(currentDevice, &deviceProperties);
     vkGetPhysicalDeviceFeatures(currentDevice, &deviceFeatures);
+    q_family = findQueueFamilyIndex(currentDevice);
+
+    // std::cout << deviceProperties.deviceName << std::endl;
 
     return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && 
-                                            deviceFeatures.geometryShader;
+                                            deviceFeatures.geometryShader &&
+                                            q_family.isComplete();
     // 这里是挑选 “独立显卡” 并且还支持 “几何着色器” 的显卡
 }
 
-QueueFamily findQueueFamily(VkPhysicalDevice c_device){
-    //
+QueueFamily HelloTriangleApplication::findQueueFamilyIndex(VkPhysicalDevice c_device){
+    uint32_t queueFamilyPropertyCount;
+    vkGetPhysicalDeviceQueueFamilyProperties(c_device, &queueFamilyPropertyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyPropertyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(c_device, &queueFamilyPropertyCount, queueFamilies.data());
+
+    int index = 0;
+    QueueFamily foundQueueFamily;
+    for (const auto& qf : queueFamilies) {
+        if (qf.queueFlags && VK_QUEUE_GRAPHICS_BIT) {
+            foundQueueFamily.graphicsQueueFamily = index;
+        }
+        ++index;
+    }
+    return foundQueueFamily;
 }
 
 // ---- Debug 相关 ----

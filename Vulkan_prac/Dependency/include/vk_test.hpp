@@ -48,7 +48,7 @@ private:
     bool isDeviceSuitable(VkPhysicalDevice currentDevice);
 
     // Vulkan 队列族
-    QueueFamily findQueueFamilyIndex(VkPhysicalDevice c_deivce);
+    QueueFamily findQueueFamilyIndex(VkPhysicalDevice c_device);
 
     // 调试回调函数
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
