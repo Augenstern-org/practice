@@ -20,32 +20,6 @@ const bool enableValidationLayers = false;
 const bool enableValidationLayers = true;
 #endif
 
-// ---- Vulkan 调试扩展函数 ----
-
-VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
-    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-    const VkAllocationCallbacks* pAllocator,
-    VkDebugUtilsMessengerEXT* pDebugMessenger) {
-
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)
-        vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-
-    if (func != nullptr)
-        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-    else
-        return VK_ERROR_EXTENSION_NOT_PRESENT;
-}
-
-void DestroyDebugUtilsMessengerEXT(VkInstance instance,
-    VkDebugUtilsMessengerEXT debugMessenger,
-    const VkAllocationCallbacks* pAllocator) {
-
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)
-        vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-
-    if (func != nullptr)
-        func(instance, debugMessenger, pAllocator);
-}
 
 // ---- HelloTriangleApplication 实现 ----
 
@@ -66,6 +40,7 @@ void HelloTriangleApplication::initWindow() {
 void HelloTriangleApplication::initVulkan() {
     createInstance();
     setupDebugMessenger();
+    pickupPhysicalDevice();
 }
 
 void HelloTriangleApplication::mainLoop() {
@@ -149,10 +124,23 @@ void HelloTriangleApplication::pickupPhysicalDevice(){
             break;
         }
     }
-    //
+    if (device == nullptr){
+        throw std::runtime_error("No Physical Device Available!");
+    }
 }
 
-bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice device){
+bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice currentDevice){
+    VkPhysicalDeviceProperties deviceProperties;    // 储存设备
+    VkPhysicalDeviceFeatures deviceFeatures;         // 储存设备支持的特性
+    vkGetPhysicalDeviceProperties(currentDevice, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(currentDevice, &deviceFeatures);
+
+    return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && 
+                                            deviceFeatures.geometryShader;
+    // 这里是挑选 “独立显卡” 并且还支持 “几何着色器” 的显卡
+}
+
+QueueFamily findQueueFamily(VkPhysicalDevice c_device){
     //
 }
 
@@ -207,4 +195,31 @@ VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback(
 
     std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
     return VK_FALSE;
+}
+
+// ---- Vulkan 调试扩展函数 ----
+
+VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
+    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator,
+    VkDebugUtilsMessengerEXT* pDebugMessenger) {
+
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)
+        vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+
+    if (func != nullptr)
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    else
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+
+void DestroyDebugUtilsMessengerEXT(VkInstance instance,
+    VkDebugUtilsMessengerEXT debugMessenger,
+    const VkAllocationCallbacks* pAllocator) {
+
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)
+        vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+
+    if (func != nullptr)
+        func(instance, debugMessenger, pAllocator);
 }

@@ -5,6 +5,16 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 #include <string>
+#include <optional>
+
+// 定义队列族
+struct QueueFamily{
+    std::optional<uint32_t> graphicsQueueFamily;
+
+    bool isComplete(){
+        return graphicsQueueFamily.has_value();
+    }
+};
 
 // Vulkan 应用程序类定义
 class HelloTriangleApplication {
@@ -35,14 +45,22 @@ private:
 
     // Vulkan 物理设备
     void pickupPhysicalDevice();
-    bool isDeviceSuitable(VkPhysicalDevice device);
+    bool isDeviceSuitable(VkPhysicalDevice currentDevice);
+
+    // Vulkan 队列族
+    QueueFamily findQueueFamilyIndex(VkPhysicalDevice c_deivce);
 
     // 调试回调函数
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-        void* pUserData);
+    void* pUserData);
+
+
+private:
+    QueueFamily q_family;
+
 };
 
 // 额外的辅助函数声明（供内部使用）
