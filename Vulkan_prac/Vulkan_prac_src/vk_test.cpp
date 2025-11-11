@@ -41,6 +41,7 @@ void HelloTriangleApplication::initVulkan() {
     createInstance();
     setupDebugMessenger();
     pickupPhysicalDevice();
+    createLogicDevice();
 }
 
 void HelloTriangleApplication::mainLoop() {
@@ -50,6 +51,8 @@ void HelloTriangleApplication::mainLoop() {
 }
 
 void HelloTriangleApplication::cleanup() {
+    vkDestroyDevice(logicDevice, nullptr);
+
     if (enableValidationLayers) {
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
     }
@@ -96,19 +99,7 @@ void HelloTriangleApplication::createInstance() {
     }
 }
 
-void HelloTriangleApplication::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
-    createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo.messageSeverity =
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo.messageType =
-        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = debugCallback;
-}
+
 
 void HelloTriangleApplication::pickupPhysicalDevice(){
     uint32_t deviceCount;
@@ -161,6 +152,55 @@ QueueFamily HelloTriangleApplication::findQueueFamilyIndex(VkPhysicalDevice c_de
     return foundQueueFamily;
 }
 
+void HelloTriangleApplication::createLogicDevice() {
+    std::set<uint32_t> indices = {q_family.graphicsQueueFamily.value()};
+
+    float queueProperties = 1.f;
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    for (uint32_t index : indices) {
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = index;
+        queueCreateInfo.queueCount = 1;     // 支持同时处理的队列数
+        queueCreateInfo.pQueuePriorities = &queueProperties;
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
+
+    // Vulkan 逻辑设备开启的功能
+    VkPhysicalDeviceFeatures features{};
+    // 要开启的话就在下面添加对应功能
+    // 功能的值为bool值
+    // 示例如下：
+    // features.geometryShader = 1;
+    // features.xxx
+    // ...
+
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+    createInfo.pEnabledFeatures = &features;
+    createInfo.enabledExtensionCount = 0;
+    createInfo.ppEnabledExtensionNames = nullptr;
+
+    if (vkCreateDevice(device, &createInfo, nullptr, &logicDevice) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to Create Logic Device!");
+    }
+    vkGetDeviceQueue(logicDevice, q_family.graphicsQueueFamily.value(), 0, &graphicsQueue);
+}
+
+// Surface 功能：
+// 1. 抽象抽象窗口系统之间的差异
+// 2. 绑定物理窗口
+// 3. 作为交换链的基础
+//
+// 与窗口系统的交互流程：
+// 1. 绑定原生窗口
+// 2. 协商显示参数
+// 3. 缓冲区交换
+
+
+
 // ---- Debug 相关 ----
 void HelloTriangleApplication::setupDebugMessenger() {
     if (!enableValidationLayers) return;
@@ -202,6 +242,20 @@ bool HelloTriangleApplication::checkValidationLayerSupport() {
         if (!layerFound) return false;
     }
     return true;
+}
+
+void HelloTriangleApplication::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
+    createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity =
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    createInfo.messageType =
+        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    createInfo.pfnUserCallback = debugCallback;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback(

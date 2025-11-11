@@ -1,11 +1,15 @@
 // vk_test.hpp
 #pragma once
 
+#define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
+#define GLFW_EXPOSE_NATIVE_WIN32
+
 #include <GLFW/glfw3.h>
 #include <vector>
-#include <string>
 #include <optional>
+#include <set>
+#include <GLFW/glfw3native.h>
 
 // 定义队列族
 struct QueueFamily{
@@ -29,6 +33,13 @@ private:
     VkInstance instance{};
     VkDebugUtilsMessengerEXT debugMessenger{};
     VkPhysicalDevice device;
+    VkDevice logicDevice;
+    VkQueue graphicsQueue;
+
+    QueueFamily q_family;
+
+    // 窗口显示
+    VkSurfaceKHR surface;
 
     // 初始化与清理
     void initWindow();
@@ -50,6 +61,9 @@ private:
     // Vulkan 队列族
     QueueFamily findQueueFamilyIndex(VkPhysicalDevice c_device);
 
+    // Vulkan 逻辑设备
+    void createLogicDevice();
+
     // 调试回调函数
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -58,8 +72,6 @@ private:
     void* pUserData);
 
 
-private:
-    QueueFamily q_family;
 
 };
 
