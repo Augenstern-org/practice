@@ -6,18 +6,28 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 #include <vector>
 #include <optional>
 #include <set>
-#include <GLFW/glfw3native.h>
+#include <string>
 
 // 定义队列族
 struct QueueFamily{
     std::optional<uint32_t> graphicsQueueFamily;
+    std::optional<uint32_t> presentQueueFamily;
 
     bool isComplete(){
-        return graphicsQueueFamily.has_value();
+        return graphicsQueueFamily.has_value() &&
+                presentQueueFamily.has_value();
     }
+};
+
+// 交换链细节
+struct SwapChainDetails{
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkSurfacePresentModeKHR> modes;
 };
 
 // Vulkan 应用程序类定义
@@ -35,6 +45,7 @@ private:
     VkPhysicalDevice device;
     VkDevice logicDevice;
     VkQueue graphicsQueue;
+    VkQueue presentQueue;
 
     QueueFamily q_family;
 
@@ -63,6 +74,17 @@ private:
 
     // Vulkan 逻辑设备
     void createLogicDevice();
+    bool checkDeviceExtensionSupported(VkPhysicalDevice c_device);
+
+    // Vulkan 窗口显示
+    void createSurface();
+
+    // 交换链
+    SwapChainDetails querySwapChainSupport(VkPhysicalDevice c_device);
+    VkSurfaceCapabilitiesKHR getSurfaceCapabilities(VkPhysicalDevice c_device);
+    std::vector<VkSurfaceFormatKHR> getSurfaceFormat(VkPhysicalDevice c_device);
+    std::vector<VkPresentModeKHR> getSurfacePresentMode(VkPhysicalDevice c_device);
+
 
     // 调试回调函数
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
