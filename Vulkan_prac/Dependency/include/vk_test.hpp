@@ -1,6 +1,7 @@
 // vk_test.hpp
 #pragma once
 
+#define NOMINMAX
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -11,6 +12,9 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <cstdint>              // Necessary for uint32_t
+#include <limits>               // Necessary for std::numeric_limits
+#include <algorithm>            // Necessary for std::clamp
 
 // 定义队列族
 struct QueueFamily{
@@ -27,7 +31,7 @@ struct QueueFamily{
 struct SwapChainDetails{
     VkSurfaceCapabilitiesKHR capabilities;
     std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkSurfacePresentModeKHR> modes;
+    std::vector<VkPresentModeKHR> modes;
 };
 
 // Vulkan 应用程序类定义
@@ -49,8 +53,8 @@ private:
 
     QueueFamily q_family;
 
-    // 窗口显示
     VkSurfaceKHR surface;
+    VkSwapchainKHR swapChain;
 
     // 初始化与清理
     void initWindow();
@@ -70,7 +74,7 @@ private:
     bool isDeviceSuitable(VkPhysicalDevice currentDevice);
 
     // Vulkan 队列族
-    QueueFamily findQueueFamilyIndex(VkPhysicalDevice c_device);
+    QueueFamily findQueueFamilyIndex(VkPhysicalDevice& c_device);
 
     // Vulkan 逻辑设备
     void createLogicDevice();
@@ -84,8 +88,10 @@ private:
     VkSurfaceCapabilitiesKHR getSurfaceCapabilities(VkPhysicalDevice c_device);
     std::vector<VkSurfaceFormatKHR> getSurfaceFormat(VkPhysicalDevice c_device);
     std::vector<VkPresentModeKHR> getSurfacePresentMode(VkPhysicalDevice c_device);
-
-
+    VkSurfaceFormatKHR chooseSurfaceFormat(const SwapChainDetails& details);
+    VkPresentModeKHR chooseSurfacePresentMode(const SwapChainDetails& details);
+    VkExtent2D chooseExtent2D(const SwapChainDetails& details);
+    void createSwapChain();
     // 调试回调函数
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
