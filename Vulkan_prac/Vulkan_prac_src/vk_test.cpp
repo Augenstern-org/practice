@@ -125,7 +125,7 @@ void HelloTriangleApplication::pickupPhysicalDevice(){
             break;
         }
     }
-    if (device == nullptr){
+    if (device == VK_NULL_HANDLE){
         throw std::runtime_error("No Physical Device Available!");
     }
 }
