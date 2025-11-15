@@ -7,7 +7,6 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 
 #include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
 #include <vector>
 #include <optional>
 #include <set>
@@ -15,6 +14,10 @@
 #include <cstdint>              // Necessary for uint32_t
 #include <limits>               // Necessary for std::numeric_limits
 #include <algorithm>            // Necessary for std::clamp
+#include <iostream>
+#include <stdexcept>
+#include <cstring>
+#include <cstdlib>
 
 // 定义队列族
 struct QueueFamily{
@@ -74,7 +77,7 @@ private:
     bool isDeviceSuitable(VkPhysicalDevice currentDevice);
 
     // Vulkan 队列族
-    QueueFamily findQueueFamilyIndex(VkPhysicalDevice& c_device);
+    QueueFamily findQueueFamilyIndex(VkPhysicalDevice c_device);
 
     // Vulkan 逻辑设备
     void createLogicDevice();
