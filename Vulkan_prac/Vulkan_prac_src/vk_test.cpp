@@ -102,14 +102,15 @@ void HelloTriangleApplication::createInstance() {
     }
 
     // 打印获取到的扩展列表
-    std::cout << "Required extensions:" << std::endl;
-    for (const auto& ext : extensions) {
-        std::cout << "\t" << ext << std::endl;
-    }
+    // std::cout << "Required extensions:" << std::endl;
+    // for (const auto& ext : extensions) {
+    //     std::cout << "\t" << ext << std::endl;
+    // }
     
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
         throw std::runtime_error("failed to create instance!");
     }
+    
 }
 
 
@@ -143,8 +144,9 @@ bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice currentDevice){
     bool swapChainAdequate = false;
     if (deviceExtensionSupported) {
         SwapChainDetails details = querySwapChainSupport(currentDevice);
+        
         // debug
-        std::cout << details.formats.empty() << details.modes.empty() << std::endl;
+        // std::cout << details.formats.empty() << details.modes.empty() << std::endl;
         
         swapChainAdequate = !details.formats.empty() && !details.modes.empty();
     }
@@ -155,13 +157,13 @@ bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice currentDevice){
     );
 
 
-    std::cout << deviceProperties.deviceName << " is OK: " << condition << std::endl;
-    std::cout << deviceProperties.deviceName 
-        << " is OK: " 
-        << "isComplete = " << q_family.isComplete() << ", "
-        << "deviceExtensionSupported = " << deviceExtensionSupported << ", "
-        << "swapChainAdequate = " << swapChainAdequate
-        << std::endl;
+    // std::cout << deviceProperties.deviceName << " is OK: " << condition << std::endl;
+    // std::cout << deviceProperties.deviceName 
+    //     << " is OK: " 
+    //     << "isComplete = " << q_family.isComplete() << ", "
+    //     << "deviceExtensionSupported = " << deviceExtensionSupported << ", "
+    //     << "swapChainAdequate = " << swapChainAdequate
+    //     << std::endl;
 
 
     return condition;
@@ -291,44 +293,69 @@ void HelloTriangleApplication::createSurface() {
 // 交换链创建流程
 // 查询支持细节 -> 选择参数 -> 创建交换链 -> 获取图像
 
-SwapChainDetails HelloTriangleApplication::querySwapChainSupport(VkPhysicalDevice c_device) {
-    SwapChainDetails details{};
-    details.capabilities = getSurfaceCapabilities(c_device);
-    details.formats = getSurfaceFormat(c_device);
-    details.modes = getSurfacePresentMode(c_device);
+// SwapChainDetails HelloTriangleApplication::querySwapChainSupport(VkPhysicalDevice c_device) {
+//     SwapChainDetails details{};
+//     details.capabilities = getSurfaceCapabilities(c_device);
+//     details.formats = getSurfaceFormat(c_device);
+//     details.modes = getSurfacePresentMode(c_device);
+//     return details;
+// }
+
+// VkSurfaceCapabilitiesKHR HelloTriangleApplication::getSurfaceCapabilities(VkPhysicalDevice c_device) {
+//     VkSurfaceCapabilitiesKHR surface_capabilities;
+//     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(c_device, surface, &surface_capabilities);
+//     return surface_capabilities;
+// }
+
+// std::vector<VkSurfaceFormatKHR> HelloTriangleApplication::getSurfaceFormat(VkPhysicalDevice c_device) {
+//     std::vector<VkSurfaceFormatKHR> surface_formats;
+//     uint32_t surface_formats_count;
+//     vkGetPhysicalDeviceSurfaceFormatsKHR(c_device, surface, &surface_formats_count, nullptr);
+
+//     // std::cout << "surface_formats_count: " << surface_formats_count << std::endl;
+
+//     if (surface_formats_count != 0) {
+        
+//         vkGetPhysicalDeviceSurfaceFormatsKHR(c_device, surface, &surface_formats_count, surface_formats.data());
+//     }
+//     return surface_formats;
+// }
+
+// std::vector<VkPresentModeKHR> HelloTriangleApplication::getSurfacePresentMode(VkPhysicalDevice c_device) {
+//     std::vector<VkPresentModeKHR> modes;
+//     uint32_t surface_present_modes_count;
+//     vkGetPhysicalDeviceSurfacePresentModesKHR(c_device, surface, &surface_present_modes_count, nullptr);
+
+//     // std::cout << "surface_present_modes_count: " << surface_present_modes_count << std::endl;
+
+//     if (surface_present_modes_count != 0) {
+//         vkGetPhysicalDeviceSurfacePresentModesKHR(c_device, surface, &surface_present_modes_count, modes.data());
+//     }
+//     return modes;
+// }
+
+SwapChainDetails HelloTriangleApplication::querySwapChainSupport(VkPhysicalDevice device) {
+    SwapChainDetails details;
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
+
+    uint32_t formatCount;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
+
+    if (formatCount != 0) {
+        details.formats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
+    }
+
+    uint32_t presentModeCount;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
+
+        if (presentModeCount != 0) {
+        details.modes.resize(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.modes.data());
+    }
+
     return details;
-}
-
-VkSurfaceCapabilitiesKHR HelloTriangleApplication::getSurfaceCapabilities(VkPhysicalDevice c_device) {
-    VkSurfaceCapabilitiesKHR surface_capabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(c_device, surface, &surface_capabilities);
-    return surface_capabilities;
-}
-
-std::vector<VkSurfaceFormatKHR> HelloTriangleApplication::getSurfaceFormat(VkPhysicalDevice c_device) {
-    std::vector<VkSurfaceFormatKHR> surface_formats;
-    uint32_t surface_formats_count;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(c_device, surface, &surface_formats_count, nullptr);
-
-    // std::cout << "surface_formats_count: " << surface_formats_count << std::endl;
-
-    if (surface_formats_count != 0) {
-        vkGetPhysicalDeviceSurfaceFormatsKHR(c_device, surface, &surface_formats_count, surface_formats.data());
-    }
-    return surface_formats;
-}
-
-std::vector<VkPresentModeKHR> HelloTriangleApplication::getSurfacePresentMode(VkPhysicalDevice c_device) {
-    std::vector<VkPresentModeKHR> modes;
-    uint32_t surface_present_modes_count;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(c_device, surface, &surface_present_modes_count, nullptr);
-
-    // std::cout << "surface_present_modes_count: " << surface_present_modes_count << std::endl;
-
-    if (surface_present_modes_count != 0) {
-        vkGetPhysicalDeviceSurfacePresentModesKHR(c_device, surface, &surface_present_modes_count, modes.data());
-    }
-    return modes;
 }
 
 VkSurfaceFormatKHR HelloTriangleApplication::chooseSurfaceFormat(const SwapChainDetails& details) {
@@ -389,6 +416,7 @@ void HelloTriangleApplication::createSwapChain() {
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface;
     createInfo.minImageCount = imageCount;
+    createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
     createInfo.imageArrayLayers = 1;
