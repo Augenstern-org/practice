@@ -46,6 +46,9 @@ void HelloTriangleApplication::initVulkan() {
     pickupPhysicalDevice();
     createLogicDevice();
     createSwapChain();
+    getSwapChainImages(swapChainImages);
+    createImageView();
+    createGraphicsPipeline();
 }
 
 void HelloTriangleApplication::mainLoop() {
@@ -55,6 +58,11 @@ void HelloTriangleApplication::mainLoop() {
 }
 
 void HelloTriangleApplication::cleanup() {
+    vkDestroyPipelineLayout(logicDevice, pipelineLayout, nullptr);
+    for (const auto& imageView : imageViews){
+        vkDestroyImageView(logicDevice, imageView, nullptr);
+    }
+
     vkDestroySwapchainKHR(logicDevice, swapChain, nullptr);
     vkDestroyDevice(logicDevice, nullptr);
 
@@ -152,6 +160,8 @@ bool HelloTriangleApplication::isDeviceSuitable(VkPhysicalDevice currentDevice){
     }
 
     const bool condition = (q_family.isComplete() &&
+                            (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) &&
+                            deviceFeatures.geometryShader &&
                             deviceExtensionSupported &&
                             swapChainAdequate
     );
@@ -204,7 +214,7 @@ QueueFamily HelloTriangleApplication::findQueueFamilyIndex(VkPhysicalDevice c_de
         if (foundQueueFamily.isComplete()) {
             break;
         }
-        index++;
+        ++index;
     }
     if (!foundQueueFamily.isComplete()) {
         throw std::runtime_error("Failed to find suitable queue families!");
@@ -443,6 +453,193 @@ void HelloTriangleApplication::createSwapChain() {
     if (vkCreateSwapchainKHR(logicDevice, &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
         throw std::runtime_error("failed to create swap chain!");
     }
+
+    swapChainImageFormat = surfaceFormat.format;
+    swapChainImageExtent = extent;
+}
+
+void HelloTriangleApplication::getSwapChainImages(std::vector<VkImage>& images){
+    uint32_t imageCount;
+    vkGetSwapchainImagesKHR(logicDevice, swapChain, &imageCount, nullptr);
+    if (imageCount != 0){
+        images.resize(imageCount);
+        vkGetSwapchainImagesKHR(logicDevice, swapChain, &imageCount, images.data());
+    }
+}
+
+void HelloTriangleApplication::createImageView(){
+    imageViews.resize(swapChainImages.size());
+    for (int index = 0; index != swapChainImages.size(); ++index){
+        VkImageViewCreateInfo imageViewCreateInfo{};
+        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewCreateInfo.image = swapChainImages[index];
+        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imageViewCreateInfo.format = swapChainImageFormat;
+        imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;    // 图像用途
+        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;                          // 初始mipmap层数
+        imageViewCreateInfo.subresourceRange.levelCount = 1;                            // mipmap层数
+        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewCreateInfo.subresourceRange.layerCount = 1;
+        if (vkCreateImageView(logicDevice, &imageViewCreateInfo, nullptr, &imageViews[index]) != VK_SUCCESS){
+            throw std::runtime_error("Failed to create image view!");
+        }
+    }
+}
+
+// 图形管线
+
+void HelloTriangleApplication::createGraphicsPipeline(){
+    auto vertShaderCode = readFile("../shader/vert.spv");
+    auto fragShaderCode = readFile("../shader/frag.spv");
+
+    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertShaderStageInfo.module = vertShaderModule;
+    vertShaderStageInfo.pNext = "main";
+
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragShaderStageInfo.module = fragShaderModule;
+    fragShaderStageInfo.pNext = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 0;
+    vertexInputInfo.pVertexBindingDescriptions = nullptr;       // 可选
+    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    vertexInputInfo.pVertexAttributeDescriptions = nullptr;     // 可选
+
+    // 输入汇编
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    // 视区
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float) swapChainImageExtent.width;
+    viewport.height = (float) swapChainImageExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    // 裁剪矩形
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = swapChainImageExtent;
+
+    // 当选择动态视口和剪裁矩形时，需要为管线启用相应的动态状态
+    std::vector<VkDynamicState> dynamicStates = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+    // 然后只需在管线创建时指定它们的计数
+    VkPipelineViewportStateCreateInfo viewPortCreateInfo{};
+    viewPortCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewPortCreateInfo.viewportCount = 1;
+    viewPortCreateInfo.scissorCount = 1;
+
+    // 光栅化器
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+
+    // polygonMode 确定如何为几何图形生成片段。以下模式可用
+    // · VK_POLYGON_MODE_FILL：用片段填充多边形的区域
+    // · VK_POLYGON_MODE_LINE：多边形边缘绘制为线条
+    // · VK_POLYGON_MODE_POINT：多边形顶点绘制为点
+    // 使用填充以外的任何模式都需要启用 GPU 功能。
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.depthBiasEnable = VK_FALSE;
+    rasterizer.depthBiasConstantFactor = 0.0f;      // 可选
+    rasterizer.depthBiasClamp = 0.0f;               // 可选
+    rasterizer.depthBiasSlopeFactor = 0.0f;         // 可选
+
+    // 颜色混合
+    // 有两种结构体用于配置颜色混合。第一个结构体 VkPipelineColorBlendAttachmentState 包含每个附加帧缓冲区的配置，
+    // 第二个结构体 VkPipelineColorBlendStateCreateInfo 包含全局颜色混合设置。
+    // 在我们的例子中只有一个帧缓冲区
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    // 该选项负责不透明的效果，性能更好
+    colorBlendAttachment.blendEnable = VK_FALSE;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;         // 可选
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;        // 可选
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;                    // 可选
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;         // 可选
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;        // 可选
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;                    // 可选
+
+    // 针对烟雾、粒子、UI等效果采用该选项可实现透明效果
+    // colorBlendAttachment.blendEnable = VK_TRUE;
+    // colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    // colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    // colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+    // colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    // colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    // colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.logicOp = VK_LOGIC_OP_COPY;   // 可选
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+    colorBlending.blendConstants[0] = 0.0f;     // 可选
+    colorBlending.blendConstants[1] = 0.0f;     // 可选
+    colorBlending.blendConstants[2] = 0.0f;     // 可选
+    colorBlending.blendConstants[3] = 0.0f;     // 可选
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 0;              // 可选
+    pipelineLayoutInfo.pSetLayouts = nullptr;           // 可选
+    pipelineLayoutInfo.pushConstantRangeCount = 0;      // 可选
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;   // 可选
+
+    if (vkCreatePipelineLayout(logicDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create pipeline layout!");
+    }
+
+
+    // 清理工作
+    vkDestroyShaderModule(logicDevice, fragShaderModule, nullptr);
+    vkDestroyShaderModule(logicDevice, vertShaderModule, nullptr);
+
+}
+
+VkShaderModule HelloTriangleApplication::createShaderModule(const std::vector<char>& code){
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t*> (code.data());
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(logicDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS){
+        throw std::runtime_error("Failed to create shader module!");
+    }
+    return shaderModule;
 }
 
 

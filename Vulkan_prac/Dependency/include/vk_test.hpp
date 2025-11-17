@@ -12,13 +12,14 @@
 #include <optional>
 #include <set>
 #include <string>
-#include <cstdint>              // Necessary for uint32_t
-#include <limits>               // Necessary for std::numeric_limits
-#include <algorithm>            // Necessary for std::clamp
+#include <cstdint>
+#include <limits>
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <cstring>
 #include <cstdlib>
+#include <fstream>
 
 // 定义队列族
 struct QueueFamily{
@@ -59,6 +60,15 @@ private:
 
     VkSurfaceKHR surface;
     VkSwapchainKHR swapChain;
+
+    VkFormat swapChainImageFormat;
+    VkExtent2D swapChainImageExtent;
+    std::vector<VkImage> swapChainImages;
+    std::vector<VkImageView> imageViews;
+
+    VkPipelineLayout pipelineLayout;
+
+
 
     // 初始化与清理
     void initWindow();
@@ -103,7 +113,34 @@ private:
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData);
 
+    // Images
+    void getSwapChainImages(std::vector<VkImage>& images);
+    void createImageView();
 
+    // 着色器
+
+    static std::vector<char> readFile(const std::string& filename) {
+        std::ifstream file(filename, std::ios::ate | std::ios::binary);
+        // 从文件末尾开始读取的优点是，可以使用读取位置来确定文件的大小并分配缓冲区
+
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open the file!");
+        }
+
+        size_t fileSize = (size_t) file.tellg();
+        std::vector<char> buffer(fileSize);
+
+        // 寻址返回开头正式开始读取
+        file.seekg(0);
+        file.read(buffer.data(), fileSize);
+
+        file.close();
+        
+        return buffer;
+    }
+
+    void createGraphicsPipeline();
+    VkShaderModule createShaderModule(const std::vector<char>& code);
 
 };
 
