@@ -14,6 +14,9 @@ const std::vector<const char*> validationLayers = {
 // 设备拓展
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    // VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
+    // VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
+
 };
 
 #ifdef NDEBUG
@@ -46,8 +49,8 @@ void HelloTriangleApplication::initVulkan() {
     pickupPhysicalDevice();
     createLogicDevice();
     createSwapChain();
-    getSwapChainImages(swapChainImages);
     createImageView();
+    createRenderPass();
     createGraphicsPipeline();
 }
 
@@ -58,6 +61,8 @@ void HelloTriangleApplication::mainLoop() {
 }
 
 void HelloTriangleApplication::cleanup() {
+    vkDestroyPipeline(logicDevice, graphicsPipeline, nullptr);
+    vkDestroyRenderPass(logicDevice, renderPass, nullptr);
     vkDestroyPipelineLayout(logicDevice, pipelineLayout, nullptr);
     for (const auto& imageView : imageViews){
         vkDestroyImageView(logicDevice, imageView, nullptr);
@@ -454,6 +459,10 @@ void HelloTriangleApplication::createSwapChain() {
         throw std::runtime_error("failed to create swap chain!");
     }
 
+    vkGetSwapchainImagesKHR(logicDevice, swapChain, &imageCount, nullptr);
+    swapChainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(logicDevice, swapChain, &imageCount, swapChainImages.data());
+
     swapChainImageFormat = surfaceFormat.format;
     swapChainImageExtent = extent;
 }
@@ -493,8 +502,8 @@ void HelloTriangleApplication::createImageView(){
 // 图形管线
 
 void HelloTriangleApplication::createGraphicsPipeline(){
-    auto vertShaderCode = readFile("../shader/vert.spv");
-    auto fragShaderCode = readFile("../shader/frag.spv");
+    auto vertShaderCode = readFile("C:/Users/Neuroil/Documents/Code/practice/Vulkan_prac/shader/vert.spv");
+    auto fragShaderCode = readFile("C:/Users/Neuroil/Documents/Code/practice/Vulkan_prac/shader/frag.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -552,10 +561,10 @@ void HelloTriangleApplication::createGraphicsPipeline(){
     dynamicState.pDynamicStates = dynamicStates.data();
 
     // 然后只需在管线创建时指定它们的计数
-    VkPipelineViewportStateCreateInfo viewPortCreateInfo{};
-    viewPortCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewPortCreateInfo.viewportCount = 1;
-    viewPortCreateInfo.scissorCount = 1;
+    VkPipelineViewportStateCreateInfo viewportStateCreateInfo{};
+    viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportStateCreateInfo.viewportCount = 1;
+    viewportStateCreateInfo.scissorCount = 1;
 
     // 光栅化器
     VkPipelineRasterizationStateCreateInfo rasterizer{};
@@ -573,9 +582,18 @@ void HelloTriangleApplication::createGraphicsPipeline(){
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f;      // 可选
-    rasterizer.depthBiasClamp = 0.0f;               // 可选
-    rasterizer.depthBiasSlopeFactor = 0.0f;         // 可选
+    rasterizer.depthBiasConstantFactor = 0.0f;          // 可选
+    rasterizer.depthBiasClamp = 0.0f;                   // 可选
+    rasterizer.depthBiasSlopeFactor = 0.0f;             // 可选
+
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.minSampleShading = 1.0f;              // 可选
+    multisampling.pSampleMask = nullptr;                // 可选
+    multisampling.alphaToCoverageEnable = VK_FALSE;     // 可选
+    multisampling.alphaToOneEnable = VK_FALSE;          // 可选
 
     // 颜色混合
     // 有两种结构体用于配置颜色混合。第一个结构体 VkPipelineColorBlendAttachmentState 包含每个附加帧缓冲区的配置，
@@ -623,6 +641,40 @@ void HelloTriangleApplication::createGraphicsPipeline(){
         throw std::runtime_error("failed to create pipeline layout!");
     }
 
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportStateCreateInfo;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = nullptr;          // 可选
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.renderPass = renderPass;
+
+    // 引用描述固定功能阶段的所有结构
+    pipelineInfo.layout = pipelineLayout;
+
+    // 之后是管线布局，它是一个 Vulkan 句柄，而不是一个结构指针
+    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.subpass = 0;
+
+    // 实际上还有两个参数：basePipelineHandle 和 basePipelineIndex。Vulkan 允许您通过派生自现有管线来创建新的图形管线。
+    // 管线派生的思想是，当它们与现有管线具有许多共同功能时，设置管线的成本较低，并且在同一父级管线之间切换也可以更快地完成。
+    // 您可以使用 basePipelineHandle 指定现有管线的句柄，也可以使用 basePipelineIndex 引用即将创建的另一个管线的索引。
+    // 目前只有一个管线，所以我们只需指定一个空句柄和一个无效索引。
+    // 只有在 VkGraphicsPipelineCreateInfo 的 flags 字段中也指定了 VK_PIPELINE_CREATE_DERIVATIVE_BIT 标志时，
+    // 才会使用这些值。
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+    // pipelineInfo.basePipelineIndex = -1;
+
+    // 创建图形管线
+    if (vkCreateGraphicsPipelines(logicDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create graphics pipeline!");
+    }
 
     // 清理工作
     vkDestroyShaderModule(logicDevice, fragShaderModule, nullptr);
@@ -636,11 +688,47 @@ VkShaderModule HelloTriangleApplication::createShaderModule(const std::vector<ch
     createInfo.codeSize = code.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*> (code.data());
     VkShaderModule shaderModule;
+
     if (vkCreateShaderModule(logicDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS){
         throw std::runtime_error("Failed to create shader module!");
     }
     return shaderModule;
 }
+
+void HelloTriangleApplication::createRenderPass(){
+    VkAttachmentDescription colorAttachment{};
+        colorAttachment.format = swapChainImageFormat;
+        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    VkRenderPassCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    // 指定附件与子通道
+    createInfo.attachmentCount = 1;
+    createInfo.pAttachments = &colorAttachment;
+    createInfo.subpassCount = 1;
+    createInfo.pSubpasses = &subpass;
+
+    if (vkCreateRenderPass(logicDevice, &createInfo, nullptr, &renderPass) != VK_SUCCESS){
+        throw std::runtime_error("Failed to create render pass!");
+    }
+}
+
+
 
 
 
