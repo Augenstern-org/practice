@@ -21,6 +21,8 @@
 #include <cstdlib>
 #include <fstream>
 
+#include <filesystem>       // Debug
+
 // 定义队列族
 struct QueueFamily{
     std::optional<uint32_t> graphicsQueueFamily;
@@ -64,12 +66,16 @@ private:
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainImageExtent;
     std::vector<VkImage> swapChainImages;
-    std::vector<VkImageView> imageViews;
+    std::vector<VkImageView> swapChainImageViews;
 
     VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
 
+    std::vector<VkFramebuffer> swapChainFramebuffers;
+
+    VkCommandPool commandPool;
+    VkCommandBuffer commandBuffer;
 
 
     // 初始化与清理
@@ -121,25 +127,7 @@ private:
     void createImageView();
 
     // 着色器
-    static std::vector<char> readFile(const std::string& filename) {
-        std::ifstream file(filename, std::ios::ate | std::ios::binary);
-        // 从文件末尾开始读取的优点是，可以使用读取位置来确定文件的大小并分配缓冲区
-
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open the file!");
-        }
-
-        size_t fileSize = (size_t) file.tellg();
-        std::vector<char> buffer(fileSize);
-
-        // 寻址返回开头正式开始读取
-        file.seekg(0);
-        file.read(buffer.data(), fileSize);
-
-        file.close();
-        
-        return buffer;
-    }
+    static std::vector<char> readFile(const std::string& filename);
 
     // 渲染过程
 
@@ -152,32 +140,14 @@ private:
     void createGraphicsPipeline();
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
+    // 帧缓冲
+    void createFrameBuffers();
 
+    // 命令池
+    void createCommandPool();
+    void createCommandBuffer();
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
-    // 着色器
-
-    static std::vector<char> readFile(const std::string& filename) {
-        std::ifstream file(filename, std::ios::ate | std::ios::binary);
-        // 从文件末尾开始读取的优点是，可以使用读取位置来确定文件的大小并分配缓冲区
-
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open the file!");
-        }
-
-        size_t fileSize = (size_t) file.tellg();
-        std::vector<char> buffer(fileSize);
-
-        // 寻址返回开头正式开始读取
-        file.seekg(0);
-        file.read(buffer.data(), fileSize);
-
-        file.close();
-        
-        return buffer;
-    }
-
-    void createGraphicsPipeline();
-    VkShaderModule createShaderModule(const std::vector<char>& code);
 
 };
 

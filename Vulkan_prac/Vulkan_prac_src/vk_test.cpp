@@ -52,6 +52,9 @@ void HelloTriangleApplication::initVulkan() {
     createImageView();
     createRenderPass();
     createGraphicsPipeline();
+    createFrameBuffers();
+    createCommandPool();
+    createCommandBuffer();
 }
 
 void HelloTriangleApplication::mainLoop() {
@@ -61,10 +64,14 @@ void HelloTriangleApplication::mainLoop() {
 }
 
 void HelloTriangleApplication::cleanup() {
+    vkDestroyCommandPool(logicDevice, commandPool, nullptr);
+    for (auto framebuffer : swapChainFramebuffers) {
+        vkDestroyFramebuffer(logicDevice, framebuffer, nullptr);
+    }
     vkDestroyPipeline(logicDevice, graphicsPipeline, nullptr);
     vkDestroyRenderPass(logicDevice, renderPass, nullptr);
     vkDestroyPipelineLayout(logicDevice, pipelineLayout, nullptr);
-    for (const auto& imageView : imageViews){
+    for (const auto& imageView : swapChainImageViews){
         vkDestroyImageView(logicDevice, imageView, nullptr);
     }
 
@@ -477,7 +484,7 @@ void HelloTriangleApplication::getSwapChainImages(std::vector<VkImage>& images){
 }
 
 void HelloTriangleApplication::createImageView(){
-    imageViews.resize(swapChainImages.size());
+    swapChainImageViews.resize(swapChainImages.size());
     for (int index = 0; index != swapChainImages.size(); ++index){
         VkImageViewCreateInfo imageViewCreateInfo{};
         imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -493,17 +500,40 @@ void HelloTriangleApplication::createImageView(){
         imageViewCreateInfo.subresourceRange.levelCount = 1;                            // mipmap层数
         imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
         imageViewCreateInfo.subresourceRange.layerCount = 1;
-        if (vkCreateImageView(logicDevice, &imageViewCreateInfo, nullptr, &imageViews[index]) != VK_SUCCESS){
+        if (vkCreateImageView(logicDevice, &imageViewCreateInfo, nullptr, &swapChainImageViews[index]) != VK_SUCCESS){
             throw std::runtime_error("Failed to create image view!");
         }
     }
 }
 
+// 着色器
+std::vector<char> HelloTriangleApplication::readFile(const std::string& filename) {
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+    // 从文件末尾开始读取的优点是，可以使用读取位置来确定文件的大小并分配缓冲区
+
+    if (!file.is_open()) {
+        auto c_dir = std::filesystem::current_path();
+        std::cout << "Current Path: " << c_dir << std::endl;
+        throw std::runtime_error("Failed to open the file!");
+    }
+
+    size_t fileSize = (size_t) file.tellg();
+    std::vector<char> buffer(fileSize);
+
+    // 寻址返回开头正式开始读取
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+
+    file.close();
+    
+    return buffer;
+}
+
 // 图形管线
 
 void HelloTriangleApplication::createGraphicsPipeline(){
-    auto vertShaderCode = readFile("C:/Users/Neuroil/Documents/Code/practice/Vulkan_prac/shader/vert.spv");
-    auto fragShaderCode = readFile("C:/Users/Neuroil/Documents/Code/practice/Vulkan_prac/shader/frag.spv");
+    auto vertShaderCode = readFile("../../../Vulkan_prac_src/shader/vert.spv");
+    auto fragShaderCode = readFile("../../../Vulkan_prac_src/shader/frag.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -512,13 +542,13 @@ void HelloTriangleApplication::createGraphicsPipeline(){
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
     vertShaderStageInfo.module = vertShaderModule;
-    vertShaderStageInfo.pNext = "main";
+    vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     fragShaderStageInfo.module = fragShaderModule;
-    fragShaderStageInfo.pNext = "main";
+    fragShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
@@ -548,17 +578,6 @@ void HelloTriangleApplication::createGraphicsPipeline(){
     VkRect2D scissor{};
     scissor.offset = {0, 0};
     scissor.extent = swapChainImageExtent;
-
-    // 当选择动态视口和剪裁矩形时，需要为管线启用相应的动态状态
-    std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-
-    VkPipelineDynamicStateCreateInfo dynamicState{};
-    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-    dynamicState.pDynamicStates = dynamicStates.data();
 
     // 然后只需在管线创建时指定它们的计数
     VkPipelineViewportStateCreateInfo viewportStateCreateInfo{};
@@ -595,20 +614,24 @@ void HelloTriangleApplication::createGraphicsPipeline(){
     multisampling.alphaToCoverageEnable = VK_FALSE;     // 可选
     multisampling.alphaToOneEnable = VK_FALSE;          // 可选
 
+    // 深度与模板测试
+    VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo{};
+
     // 颜色混合
     // 有两种结构体用于配置颜色混合。第一个结构体 VkPipelineColorBlendAttachmentState 包含每个附加帧缓冲区的配置，
     // 第二个结构体 VkPipelineColorBlendStateCreateInfo 包含全局颜色混合设置。
     // 在我们的例子中只有一个帧缓冲区
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                          VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     // 该选项负责不透明的效果，性能更好
-    colorBlendAttachment.blendEnable = VK_FALSE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;         // 可选
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;        // 可选
-    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;                    // 可选
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;         // 可选
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;        // 可选
-    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;                    // 可选
+    colorBlendAttachment.blendEnable = VK_TRUE;
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;                                    // 可选
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;                                    // 可选
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;                         // 可选
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;                        // 可选
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;                   // 可选
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;         // 可选
 
     // 针对烟雾、粒子、UI等效果采用该选项可实现透明效果
     // colorBlendAttachment.blendEnable = VK_TRUE;
@@ -630,6 +653,16 @@ void HelloTriangleApplication::createGraphicsPipeline(){
     colorBlending.blendConstants[2] = 0.0f;     // 可选
     colorBlending.blendConstants[3] = 0.0f;     // 可选
 
+    // 当选择动态视口和剪裁矩形时，需要为管线启用相应的动态状态
+    std::vector<VkDynamicState> dynamicStates = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        };
+        VkPipelineDynamicStateCreateInfo dynamicState{};
+        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+        dynamicState.pDynamicStates = dynamicStates.data();
+
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 0;              // 可选
@@ -650,10 +683,10 @@ void HelloTriangleApplication::createGraphicsPipeline(){
     pipelineInfo.pViewportState = &viewportStateCreateInfo;
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pDepthStencilState = nullptr;          // 可选
+    pipelineInfo.pDepthStencilState = nullptr;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.pNext = nullptr;
 
     // 引用描述固定功能阶段的所有结构
     pipelineInfo.layout = pipelineLayout;
@@ -697,14 +730,15 @@ VkShaderModule HelloTriangleApplication::createShaderModule(const std::vector<ch
 
 void HelloTriangleApplication::createRenderPass(){
     VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = swapChainImageFormat;
-        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    colorAttachment.flags = 0;
+    colorAttachment.format = swapChainImageFormat;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     VkAttachmentReference colorAttachmentRef{};
     colorAttachmentRef.attachment = 0;
@@ -728,6 +762,133 @@ void HelloTriangleApplication::createRenderPass(){
     }
 }
 
+void HelloTriangleApplication::createFrameBuffers() {
+    swapChainFramebuffers.resize(swapChainImageViews.size());
+    for (size_t index = 0; index != swapChainFramebuffers.size(); ++index) {
+        // 首先需要指定帧缓冲需要与哪个 renderPass 兼容
+        // 只能将帧缓冲与它兼容的渲染通道一起使用
+        // 这大致意味着它们使用相同数量和类型的附件
+        VkImageView attachments[] = {
+            swapChainImageViews[index]
+        };
+
+        VkFramebufferCreateInfo framebufferCreateInfo{};
+        framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.pNext = nullptr;
+        framebufferCreateInfo.renderPass = renderPass;
+        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.pAttachments = attachments;
+        framebufferCreateInfo.width = swapChainImageExtent.width;
+        framebufferCreateInfo.height = swapChainImageExtent.height;
+        framebufferCreateInfo.layers = 1;
+
+        if (vkCreateFramebuffer(logicDevice, &framebufferCreateInfo, nullptr, &swapChainFramebuffers[index])
+                != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create frame buffer!");
+        }
+    }
+}
+
+void HelloTriangleApplication::createCommandPool() {
+    // 命令池有两个可能的标志
+    //
+    // ·VK_COMMAND_POOL_CREATE_TRANSIENT_BIT：
+    //     提示命令缓冲区经常被新的命令重新记录（可能会改变内存分配行为）
+    //
+    // ·VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT：
+    //     允许单独重新记录命令缓冲区，如果没有此标志，则必须一起重置所有命令缓冲区
+    //
+    // 我们将在每一帧都记录一个命令缓冲区，因此我们希望能够重置并重新记录它。
+    // 因此，我们需要为我们的命令池设置 VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT 标志位。
+    //
+    // 命令缓冲区通过在设备队列（例如我们检索到的图形和呈现队列）之一上提交来执行。
+    // 每个命令池只能分配在单一类型的队列上提交的命令缓冲区。
+    // 我们将要记录用于绘图的命令，这就是我们选择图形队列族的原因。
+    QueueFamily queueFamilyIndices = findQueueFamilyIndex(device);
+
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsQueueFamily.value();
+
+    if (vkCreateCommandPool(logicDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create command pool!");
+    }
+}
+
+void HelloTriangleApplication::createCommandBuffer() {
+    VkCommandBufferAllocateInfo allocateInfo{};
+    allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocateInfo.commandPool = commandPool;
+    allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocateInfo.commandBufferCount = 1;
+
+    if (vkAllocateCommandBuffers(logicDevice, &allocateInfo, &commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to allocate command buffers!");
+    }
+}
+
+void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = 0;
+    beginInfo.pInheritanceInfo = nullptr;
+
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to begin recording command buffer!");
+    }
+
+    // 启动渲染通道
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderPass;
+    renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+    // 绑定通道与附件
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = swapChainImageExtent;
+    // 定义渲染区域的大小
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
+    // 定义了 VK_ATTACHMENT_LOAD_OP_CLEAR 的清除值
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    // 绑定图形管线
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+    // 初始化之前设置的动态管线部分
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swapChainImageExtent.width);
+    viewport.height = static_cast<float>(swapChainImageExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = swapChainImageExtent;
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+    // 实际的 vkCmdDraw 函数有点虎头蛇尾，但它如此简单是因为我们预先指定的所有信息。除了命令缓冲区之外，它还有以下参数:
+    // ·vertexCount：
+    //     即使我们没有顶点缓冲区，我们技术上仍然有 3 个顶点要绘制。
+    // ·instanceCount：
+    //     用于实例化渲染，如果不这样做，则使用 1。
+    // ·firstVertex：
+    //     用作顶点缓冲区的偏移量，定义了 gl_VertexIndex 的最小值。
+    // ·firstInstance：
+    //     用作实例化渲染的偏移量，定义了 gl_InstanceIndex 的最小值。
+    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+    // 完成渲染
+    vkCmdEndRenderPass(commandBuffer);
+
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to record command buffer!");
+    }
+}
 
 
 
