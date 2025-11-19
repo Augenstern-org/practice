@@ -4,7 +4,7 @@
 
 // 定义窗口大小
 const uint32_t WIDTH = 800;
-const uint32_t HEIGHT = 600;
+const uint32_t HEIGHT = 700;
 
 // 验证层设置
 const std::vector<const char*> validationLayers = {
@@ -55,15 +55,21 @@ void HelloTriangleApplication::initVulkan() {
     createFrameBuffers();
     createCommandPool();
     createCommandBuffer();
+    createSyncObjects();
 }
 
 void HelloTriangleApplication::mainLoop() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+        drawFrame();
     }
+    vkDeviceWaitIdle(logicDevice);
 }
 
 void HelloTriangleApplication::cleanup() {
+    vkDestroySemaphore(logicDevice, imageAvailableSemaphore, nullptr);
+    vkDestroySemaphore(logicDevice, renderFinishedSemaphore, nullptr);
+    vkDestroyFence(logicDevice, inFlightFence, nullptr);
     vkDestroyCommandPool(logicDevice, commandPool, nullptr);
     for (auto framebuffer : swapChainFramebuffers) {
         vkDestroyFramebuffer(logicDevice, framebuffer, nullptr);
@@ -749,6 +755,17 @@ void HelloTriangleApplication::createRenderPass(){
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
 
+    VkSubpassDependency dependency{};
+    // 指定依赖项与被依赖项的索引
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    // 指定等待的操作以及该操作发生的阶段 -> 等待交换链完成从图像的读取
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    // 等待颜色附件阶段
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT; 
+
     VkRenderPassCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     // 指定附件与子通道
@@ -756,6 +773,9 @@ void HelloTriangleApplication::createRenderPass(){
     createInfo.pAttachments = &colorAttachment;
     createInfo.subpassCount = 1;
     createInfo.pSubpasses = &subpass;
+    // 指定依赖项的数组
+    createInfo.dependencyCount = 1;
+    createInfo.pDependencies = &dependency;
 
     if (vkCreateRenderPass(logicDevice, &createInfo, nullptr, &renderPass) != VK_SUCCESS){
         throw std::runtime_error("Failed to create render pass!");
@@ -887,6 +907,81 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("Failed to record command buffer!");
+    }
+}
+
+void HelloTriangleApplication::drawFrame(){
+    // 在高层次上，在 Vulkan 中渲染帧包含一组常见的步骤：
+    //      ·等待前一帧完成
+    //      ·从交换链获取图像
+    //      ·记录一个命令缓冲区，该缓冲区将场景绘制到该图像上
+    //      ·提交已记录的命令缓冲区
+    //      ·呈现交换链图像
+
+    // 我们有两种同步原语可供使用，并且方便地有两个地方可以应用同步：
+    //     ·交换链操作和等待前一帧完成。
+    //
+    // 我们希望使用信号量来进行交换链操作，因为它们发生在 GPU 上，因此如果可以避免，我们不希望让主机等待。
+    // 对于等待前一帧完成，我们希望使用栅栏，原因恰恰相反，因为我们需要主机等待。这样我们就不会一次绘制多个帧。
+    // 因为我们每帧都重新记录命令缓冲区，所以在当前帧执行完成之前，
+    // 我们不能将下一帧的工作记录到命令缓冲区中，因为我们不希望在 GPU 使用命令缓冲区时覆盖其当前内容。
+
+    vkWaitForFences(logicDevice, 1, &inFlightFence, VK_TRUE, UINT64_MAX);   // 等待前一帧
+    vkResetFences(logicDevice, 1, &inFlightFence);                          // 手动重置fence
+
+    // 获取图像
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(logicDevice, swapChain, UINT_MAX, imageAvailableSemaphore, inFlightFence, &imageIndex);
+    vkResetCommandBuffer(commandBuffer, 0);
+    recordCommandBuffer(commandBuffer, imageIndex);
+
+    // 提交命令缓冲区
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};                               // 等待什么信号量
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};    // 在什么阶段等待
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to submit draw command buffer!");
+    }
+
+    // 重新提交到交换链
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+
+    VkSwapchainKHR swapChains[] = {swapChain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pResults = nullptr;
+    vkQueuePresentKHR(presentQueue, &presentInfo);
+}
+
+void HelloTriangleApplication::createSyncObjects(){
+    VkSemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceCreateInfo{};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    if (vkCreateSemaphore(logicDevice, &semaphoreCreateInfo, nullptr, &imageAvailableSemaphore) != VK_SUCCESS ||
+        vkCreateSemaphore(logicDevice, &semaphoreCreateInfo, nullptr, &renderFinishedSemaphore) != VK_SUCCESS ||
+        vkCreateFence(logicDevice, &fenceCreateInfo, nullptr, &inFlightFence) != VK_SUCCESS){
+            throw std::runtime_error("Failed to create semaphores!");
     }
 }
 

@@ -77,6 +77,10 @@ private:
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffer;
 
+    VkSemaphore imageAvailableSemaphore;
+    VkSemaphore renderFinishedSemaphore;
+    VkFence inFlightFence;
+
 
     // 初始化与清理
     void initWindow();
@@ -147,6 +151,13 @@ private:
     void createCommandPool();
     void createCommandBuffer();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
+    // 绘图
+    void drawFrame();
+
+    // 创建同步对象
+    void createSyncObjects();
+
 
 
 };
