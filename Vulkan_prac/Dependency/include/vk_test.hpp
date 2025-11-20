@@ -75,11 +75,14 @@ private:
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
     VkCommandPool commandPool;
-    VkCommandBuffer commandBuffer;
+    std::vector<VkCommandBuffer> commandBuffers;
 
-    VkSemaphore imageAvailableSemaphore;
-    VkSemaphore renderFinishedSemaphore;
-    VkFence inFlightFence;
+    std::vector<VkSemaphore> imageAvailableSemaphores;
+    std::vector<VkSemaphore> renderFinishedSemaphores;
+    std::vector<VkFence> inFlightFences;
+
+    uint32_t currentFrame = 0;
+    bool framebufferResized = false;
 
 
     // 初始化与清理
@@ -108,6 +111,7 @@ private:
 
     // Vulkan 窗口显示
     void createSurface();
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
     // 交换链
     SwapChainDetails querySwapChainSupport(VkPhysicalDevice c_device);
@@ -119,6 +123,9 @@ private:
     VkPresentModeKHR chooseSurfacePresentMode(const SwapChainDetails& details);
     VkExtent2D chooseExtent2D(const SwapChainDetails& details);
     void createSwapChain();
+    void recreateSwapChain();
+    void cleanupSwapChain();
+
     // 调试回调函数
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -149,7 +156,7 @@ private:
 
     // 命令池
     void createCommandPool();
-    void createCommandBuffer();
+    void createCommandBuffers();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
     // 绘图
