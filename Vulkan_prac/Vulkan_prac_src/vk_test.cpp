@@ -943,7 +943,7 @@ void HelloTriangleApplication::drawFrame(){
             throw std::runtime_error("Failed to acquire swap chain image!");
         }
 
-    vkResetFences(logicDevice, 1, &inFlightFences[currentFrame]);                          // 手动重置fence
+    vkResetFences(logicDevice, 1, &inFlightFences[currentFrame]);                           // 手动重置fence
 
     // 获取图像
 
@@ -954,7 +954,7 @@ void HelloTriangleApplication::drawFrame(){
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};                               // 等待什么信号量
+    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};                // 等待什么信号量
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};    // 在什么阶段等待
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
