@@ -1,5 +1,6 @@
 // vk_test.cpp
 #include "vk_test.hpp"
+#include "shader.hpp"
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -58,6 +59,7 @@ void HelloTriangleApplication::initVulkan() {
     createGraphicsPipeline();
     createFrameBuffers();
     createCommandPool();
+    createVertexBuffer();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -73,6 +75,7 @@ void HelloTriangleApplication::mainLoop() {
 void HelloTriangleApplication::cleanup() {
     cleanupSwapChain();
 
+    vkDestroyBuffer(logicDevice, vertexBuffer, nullptr);
     vkDestroyPipeline(logicDevice, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(logicDevice, pipelineLayout, nullptr);
 
@@ -521,8 +524,8 @@ std::vector<char> HelloTriangleApplication::readFile(const std::string& filename
     // 从文件末尾开始读取的优点是，可以使用读取位置来确定文件的大小并分配缓冲区
 
     if (!file.is_open()) {
-        auto c_dir = std::filesystem::current_path();
-        std::cout << "Current Path: " << c_dir << std::endl;
+        // auto c_dir = std::filesystem::current_path();
+        // std::cout << "Current Path: " << c_dir << std::endl;
         throw std::runtime_error("Failed to open the file!");
     }
 
@@ -561,12 +564,17 @@ void HelloTriangleApplication::createGraphicsPipeline(){
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
+    
+    // 管理着色器
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = nullptr;       // 可选
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr;     // 可选
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     // 输入汇编
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -1046,6 +1054,47 @@ void HelloTriangleApplication::framebufferResizeCallback(GLFWwindow* window, int
     auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
     app->framebufferResized = true;
 
+}
+
+void HelloTriangleApplication::createVertexBuffer(){
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(logicDevice, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS){
+        throw std::runtime_error("Failed to create Vertex Buffer!");
+    }
+
+    // 获取内存需求
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(logicDevice, vertexBuffer, &memRequirements);
+
+    // VkMemoryRequirements 结构具有三个字段
+    // size：
+    //     所需内存量的字节大小，可能与 bufferInfo.size 不同。
+    // alignment：
+    //     缓冲区在内存分配区域中开始的字节偏移量，取决于 bufferInfo.usage 和 bufferInfo.flags。
+    // memoryTypeBits：
+    //     适用于该缓冲区的内存类型的位域。
+‘
+
+
+}
+
+uint32_t HelloTriangleApplication::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(device, &memProperties);
+
+    // 查找合适的内存类型
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
 }
 
 

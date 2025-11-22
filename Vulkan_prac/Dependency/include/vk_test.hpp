@@ -21,7 +21,8 @@
 #include <cstdlib>
 #include <fstream>
 
-#include <filesystem>       // Debug
+
+// #include <filesystem>       // Debug
 
 // 定义队列族
 struct QueueFamily{
@@ -73,6 +74,8 @@ private:
     VkPipeline graphicsPipeline;
 
     std::vector<VkFramebuffer> swapChainFramebuffers;
+
+    VkBuffer vertexBuffer;
 
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -139,6 +142,7 @@ private:
 
     // 着色器
     static std::vector<char> readFile(const std::string& filename);
+    void createVertexBuffer();
 
     // 渲染过程
 
@@ -165,6 +169,8 @@ private:
     // 创建同步对象
     void createSyncObjects();
 
+    // GPU
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 
 };
