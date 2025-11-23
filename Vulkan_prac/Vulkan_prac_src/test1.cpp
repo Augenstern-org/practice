@@ -1,5 +1,6 @@
 // main.cpp
 #include "vk_test.hpp"
+#include "shader.hpp"
 #include <iostream>
 #include <cstdlib>
 

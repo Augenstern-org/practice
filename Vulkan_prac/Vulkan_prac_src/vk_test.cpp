@@ -76,6 +76,7 @@ void HelloTriangleApplication::cleanup() {
     cleanupSwapChain();
 
     vkDestroyBuffer(logicDevice, vertexBuffer, nullptr);
+    vkFreeMemory(logicDevice, vertexBufferMemory, nullptr);
     vkDestroyPipeline(logicDevice, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(logicDevice, pipelineLayout, nullptr);
 
@@ -672,13 +673,13 @@ void HelloTriangleApplication::createGraphicsPipeline(){
 
     // 当选择动态视口和剪裁矩形时，需要为管线启用相应的动态状态
     std::vector<VkDynamicState> dynamicStates = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
-        };
-        VkPipelineDynamicStateCreateInfo dynamicState{};
-        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-        dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-        dynamicState.pDynamicStates = dynamicStates.data();
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -912,7 +913,12 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     //     用作顶点缓冲区的偏移量，定义了 gl_VertexIndex 的最小值。
     // ·firstInstance：
     //     用作实例化渲染的偏移量，定义了 gl_InstanceIndex 的最小值。
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+    VkBuffer vertexBuffers[] = {vertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
     // 完成渲染
     vkCmdEndRenderPass(commandBuffer);
@@ -1078,8 +1084,22 @@ void HelloTriangleApplication::createVertexBuffer(){
     //     缓冲区在内存分配区域中开始的字节偏移量，取决于 bufferInfo.usage 和 bufferInfo.flags。
     // memoryTypeBits：
     //     适用于该缓冲区的内存类型的位域。
-‘
 
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+                                                                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (vkAllocateMemory(logicDevice, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create vertex buffer memory");
+    }
+
+    vkBindBufferMemory(logicDevice, vertexBuffer, vertexBufferMemory, 0);
+
+    void* data;
+    vkMapMemory(logicDevice, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+        memcpy(data, vertices.data(), (size_t)bufferInfo.size);
+    vkUnmapMemory(logicDevice, vertexBufferMemory);
 
 }
 

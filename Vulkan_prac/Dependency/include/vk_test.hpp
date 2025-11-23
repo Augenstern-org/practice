@@ -76,6 +76,7 @@ private:
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
     VkBuffer vertexBuffer;
+    VkDeviceMemory vertexBufferMemory;
 
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
