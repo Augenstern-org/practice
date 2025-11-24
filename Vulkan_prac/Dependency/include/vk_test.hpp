@@ -77,6 +77,8 @@ private:
 
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
 
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -155,6 +157,7 @@ private:
     // 着色器
     static std::vector<char> readFile(const std::string& filename);
     void createVertexBuffer();
+    void createIndexBuffer();
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, 
                       VkMemoryPropertyFlags properties, VkBuffer& buffer, 
                       VkDeviceMemory& bufferMemory);

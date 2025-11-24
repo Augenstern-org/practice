@@ -60,6 +60,7 @@ void HelloTriangleApplication::initVulkan() {
     createFrameBuffers();
     createCommandPool();
     createVertexBuffer();
+    createIndexBuffer();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -75,12 +76,16 @@ void HelloTriangleApplication::mainLoop() {
 void HelloTriangleApplication::cleanup() {
     cleanupSwapChain();
 
-    vkDestroyBuffer(logicDevice, vertexBuffer, nullptr);
-    vkFreeMemory(logicDevice, vertexBufferMemory, nullptr);
     vkDestroyPipeline(logicDevice, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(logicDevice, pipelineLayout, nullptr);
 
     vkDestroyRenderPass(logicDevice, renderPass, nullptr);
+
+    vkDestroyBuffer(logicDevice, indexBuffer, nullptr);
+    vkFreeMemory(logicDevice, indexBufferMemory, nullptr);
+
+    vkDestroyBuffer(logicDevice, vertexBuffer, nullptr);
+    vkFreeMemory(logicDevice, vertexBufferMemory, nullptr);
 
     for (size_t index = 0; index != MAX_FRAMES_IN_FLIGHT; ++index){
         vkDestroySemaphore(logicDevice, renderFinishedSemaphores[index], nullptr);
@@ -918,7 +923,8 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-    vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
     // 完成渲染
     vkCmdEndRenderPass(commandBuffer);
@@ -1179,6 +1185,30 @@ void HelloTriangleApplication::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer
     vkFreeCommandBuffers(logicDevice, commandPool, 1, &commandBuffer);
 
 }
+
+void HelloTriangleApplication::createIndexBuffer() {
+    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 stagingBuffer, stagingBufferMemory);
+    void* data;
+    vkMapMemory(logicDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, indices.data(), (size_t) bufferSize);
+    vkUnmapMemory(logicDevice, stagingBufferMemory);
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+
+    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+    vkDestroyBuffer(logicDevice, stagingBuffer, nullptr);
+    vkFreeMemory(logicDevice, stagingBufferMemory, nullptr);
+}
+
 
 
 

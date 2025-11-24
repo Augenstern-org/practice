@@ -15,3 +15,4 @@ struct Vertex {
 };
 
 extern const std::vector<Vertex> vertices;
+extern const std::vector<uint16_t> indices;
