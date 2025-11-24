@@ -141,10 +141,6 @@ private:
     void getSwapChainImages(std::vector<VkImage>& images);
     void createImageView();
 
-    // 着色器
-    static std::vector<char> readFile(const std::string& filename);
-    void createVertexBuffer();
-
     // 渲染过程
 
     // 在完成管线的创建之前，我们需要告诉 Vulkan 将在渲染时使用的帧缓冲附件。我们需要指定将有多少颜色和深度缓冲区，
@@ -155,6 +151,14 @@ private:
     // 渲染管线
     void createGraphicsPipeline();
     VkShaderModule createShaderModule(const std::vector<char>& code);
+
+    // 着色器
+    static std::vector<char> readFile(const std::string& filename);
+    void createVertexBuffer();
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, 
+                      VkMemoryPropertyFlags properties, VkBuffer& buffer, 
+                      VkDeviceMemory& bufferMemory);
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     // 帧缓冲
     void createFrameBuffers();

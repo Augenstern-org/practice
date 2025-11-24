@@ -1062,20 +1062,50 @@ void HelloTriangleApplication::framebufferResizeCallback(GLFWwindow* window, int
 
 }
 
-void HelloTriangleApplication::createVertexBuffer(){
+
+
+void HelloTriangleApplication::createVertexBuffer() {
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+                stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(logicDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, vertices.data(), (size_t) bufferSize);
+    vkUnmapMemory(logicDevice, stagingBufferMemory);
+
+    // VK_BUFFER_USAGE_TRANSFER_SRC_BIT：
+    //     缓冲区可以用作内存传输操作的源。
+    // VK_BUFFER_USAGE_TRANSFER_DST_BIT：
+    //     缓冲区可以用作内存传输操作的目的地。
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+    // 清理暂存缓冲区
+    vkDestroyBuffer(logicDevice, stagingBuffer, nullptr);
+    vkFreeMemory(logicDevice, stagingBufferMemory, nullptr);
+}
+
+void HelloTriangleApplication::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, 
+                                            VkMemoryPropertyFlags properties, VkBuffer& buffer,
+                                             VkDeviceMemory& bufferMemory){
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    if (vkCreateBuffer(logicDevice, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS){
+    if (vkCreateBuffer(logicDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS){
         throw std::runtime_error("Failed to create Vertex Buffer!");
     }
 
     // 获取内存需求
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(logicDevice, vertexBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(logicDevice, buffer, &memRequirements);
 
     // VkMemoryRequirements 结构具有三个字段
     // size：
@@ -1088,19 +1118,13 @@ void HelloTriangleApplication::createVertexBuffer(){
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-                                                                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    if (vkAllocateMemory(logicDevice, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create vertex buffer memory");
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(logicDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create vertex buffer memory!");
     }
 
-    vkBindBufferMemory(logicDevice, vertexBuffer, vertexBufferMemory, 0);
-
-    void* data;
-    vkMapMemory(logicDevice, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-        memcpy(data, vertices.data(), (size_t)bufferInfo.size);
-    vkUnmapMemory(logicDevice, vertexBufferMemory);
-
+    vkBindBufferMemory(logicDevice, buffer, bufferMemory, 0);
 }
 
 uint32_t HelloTriangleApplication::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -1108,13 +1132,52 @@ uint32_t HelloTriangleApplication::findMemoryType(uint32_t typeFilter, VkMemoryP
     vkGetPhysicalDeviceMemoryProperties(device, &memProperties);
 
     // 查找合适的内存类型
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i) {
         if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
             return i;
         }
     }
 
     throw std::runtime_error("failed to find suitable memory type!");
+}
+
+void HelloTriangleApplication::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(logicDevice, &allocInfo, &commandBuffer);
+
+    // 记录缓冲区
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion{};
+    copyRegion.srcOffset = 0;
+    copyRegion.dstOffset = 0;
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    // 传输命令
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphicsQueue);
+
+    // 清理缓冲区
+    vkFreeCommandBuffers(logicDevice, commandPool, 1, &commandBuffer);
+
 }
 
 
