@@ -3,6 +3,8 @@
 #include "vk_test.hpp"
 #include <array>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <chrono>
 
 
 // 顶点着色器通信
@@ -16,3 +18,9 @@ struct Vertex {
 
 extern const std::vector<Vertex> vertices;
 extern const std::vector<uint16_t> indices;
+
+struct UniformBufferObject {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+};

@@ -70,6 +70,7 @@ private:
     std::vector<VkImageView> swapChainImageViews;
 
     VkRenderPass renderPass;
+    VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
 
@@ -79,6 +80,10 @@ private:
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
+
+    std::vector<VkBuffer> uniformBuffers;
+    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<void*> uniformBuffersMapped;
 
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -155,6 +160,8 @@ private:
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
     // 着色器
+    // 绑定顶点数据
+    void createDescriptorSetLayout();
     static std::vector<char> readFile(const std::string& filename);
     void createVertexBuffer();
     void createIndexBuffer();
@@ -162,6 +169,8 @@ private:
                       VkMemoryPropertyFlags properties, VkBuffer& buffer, 
                       VkDeviceMemory& bufferMemory);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void createUniformBuffers();
+    void updateUniformBuffer(uint32_t currentImage);
 
     // 帧缓冲
     void createFrameBuffers();

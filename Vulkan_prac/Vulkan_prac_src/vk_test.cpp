@@ -61,6 +61,7 @@ void HelloTriangleApplication::initVulkan() {
     createCommandPool();
     createVertexBuffer();
     createIndexBuffer();
+    createUniformBuffers();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -76,6 +77,12 @@ void HelloTriangleApplication::mainLoop() {
 void HelloTriangleApplication::cleanup() {
     cleanupSwapChain();
 
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroyBuffer(logicDevice, uniformBuffers[i], nullptr);
+        vkFreeMemory(logicDevice, uniformBuffersMemory[i], nullptr);
+    }
+
+    vkDestroyDescriptorSetLayout(logicDevice, descriptorSetLayout, nullptr);
     vkDestroyPipeline(logicDevice, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(logicDevice, pipelineLayout, nullptr);
 
@@ -247,7 +254,7 @@ QueueFamily HelloTriangleApplication::findQueueFamilyIndex(VkPhysicalDevice c_de
         ++index;
     }
     if (!foundQueueFamily.isComplete()) {
-        throw std::runtime_error("Failed to find suitable queue families!");
+        throw std::runtime_error("failed to find suitable queue families!");
     }
     return foundQueueFamily;
 }
@@ -299,7 +306,7 @@ void HelloTriangleApplication::createLogicDevice() {
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
     if (vkCreateDevice(device, &createInfo, nullptr, &logicDevice) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to Create Logic Device!");
+        throw std::runtime_error("failed to Create Logic Device!");
     }
     vkGetDeviceQueue(logicDevice, q_family.graphicsQueueFamily.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(logicDevice, q_family.presentQueueFamily.value(), 0, &presentQueue);
@@ -326,7 +333,7 @@ void HelloTriangleApplication::createSurface() {
     // }
 
     if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to Create Window Surface!");
+        throw std::runtime_error("failed to Create Window Surface!");
     }
 }
 
@@ -519,7 +526,7 @@ void HelloTriangleApplication::createImageView(){
         imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
         imageViewCreateInfo.subresourceRange.layerCount = 1;
         if (vkCreateImageView(logicDevice, &imageViewCreateInfo, nullptr, &swapChainImageViews[index]) != VK_SUCCESS){
-            throw std::runtime_error("Failed to create image view!");
+            throw std::runtime_error("failed to create image view!");
         }
     }
 }
@@ -532,7 +539,7 @@ std::vector<char> HelloTriangleApplication::readFile(const std::string& filename
     if (!file.is_open()) {
         // auto c_dir = std::filesystem::current_path();
         // std::cout << "Current Path: " << c_dir << std::endl;
-        throw std::runtime_error("Failed to open the file!");
+        throw std::runtime_error("failed to open the file!");
     }
 
     size_t fileSize = (size_t) file.tellg();
@@ -729,7 +736,7 @@ void HelloTriangleApplication::createGraphicsPipeline(){
 
     // 创建图形管线
     if (vkCreateGraphicsPipelines(logicDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create graphics pipeline!");
+        throw std::runtime_error("failed to create graphics pipeline!");
     }
 
     // 清理工作
@@ -746,7 +753,7 @@ VkShaderModule HelloTriangleApplication::createShaderModule(const std::vector<ch
     VkShaderModule shaderModule;
 
     if (vkCreateShaderModule(logicDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS){
-        throw std::runtime_error("Failed to create shader module!");
+        throw std::runtime_error("failed to create shader module!");
     }
     return shaderModule;
 }
@@ -795,7 +802,7 @@ void HelloTriangleApplication::createRenderPass(){
     createInfo.pDependencies = &dependency;
 
     if (vkCreateRenderPass(logicDevice, &createInfo, nullptr, &renderPass) != VK_SUCCESS){
-        throw std::runtime_error("Failed to create render pass!");
+        throw std::runtime_error("failed to create render pass!");
     }
 }
 
@@ -821,7 +828,7 @@ void HelloTriangleApplication::createFrameBuffers() {
 
         if (vkCreateFramebuffer(logicDevice, &framebufferCreateInfo, nullptr, &swapChainFramebuffers[index])
                 != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create frame buffer!");
+            throw std::runtime_error("failed to create frame buffer!");
         }
     }
 }
@@ -849,7 +856,7 @@ void HelloTriangleApplication::createCommandPool() {
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsQueueFamily.value();
 
     if (vkCreateCommandPool(logicDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create command pool!");
+        throw std::runtime_error("failed to create command pool!");
     }
 }
 
@@ -862,7 +869,7 @@ void HelloTriangleApplication::createCommandBuffers() {
     allocateInfo.commandBufferCount = (uint32_t) commandBuffers.size();
 
     if (vkAllocateCommandBuffers(logicDevice, &allocateInfo, commandBuffers.data()) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to allocate command buffers!");
+        throw std::runtime_error("failed to allocate command buffers!");
     }
 }
 
@@ -873,7 +880,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     beginInfo.pInheritanceInfo = nullptr;
 
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to begin recording command buffer!");
+        throw std::runtime_error("failed to begin recording command buffer!");
     }
 
     // 启动渲染通道
@@ -930,7 +937,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     vkCmdEndRenderPass(commandBuffer);
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to record command buffer!");
+        throw std::runtime_error("failed to record command buffer!");
     }
 }
 
@@ -960,7 +967,7 @@ void HelloTriangleApplication::drawFrame(){
             recreateSwapChain();
             return;
         } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-            throw std::runtime_error("Failed to acquire swap chain image!");
+            throw std::runtime_error("failed to acquire swap chain image!");
         }
 
     vkResetFences(logicDevice, 1, &inFlightFences[currentFrame]);                           // 手动重置fence
@@ -969,6 +976,9 @@ void HelloTriangleApplication::drawFrame(){
 
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+
+    // 更新 uniform 缓冲区数据
+    updateUniformBuffer(currentFrame);
 
     // 提交命令缓冲区
     VkSubmitInfo submitInfo{};
@@ -987,7 +997,7 @@ void HelloTriangleApplication::drawFrame(){
     submitInfo.pSignalSemaphores = signalSemaphores;
 
     if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to submit draw command buffer!");
+        throw std::runtime_error("failed to submit draw command buffer!");
     }
 
     // 重新提交到交换链
@@ -1030,7 +1040,7 @@ void HelloTriangleApplication::createSyncObjects(){
         if (vkCreateSemaphore(logicDevice, &semaphoreCreateInfo, nullptr, &imageAvailableSemaphores[index]) != VK_SUCCESS ||
             vkCreateSemaphore(logicDevice, &semaphoreCreateInfo, nullptr, &renderFinishedSemaphores[index]) != VK_SUCCESS ||
             vkCreateFence(logicDevice, &fenceCreateInfo, nullptr, &inFlightFences[index]) != VK_SUCCESS){
-                throw std::runtime_error("Failed to create semaphores!");
+                throw std::runtime_error("failed to create semaphores!");
         }
     }
 }
@@ -1106,7 +1116,7 @@ void HelloTriangleApplication::createBuffer(VkDeviceSize size, VkBufferUsageFlag
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateBuffer(logicDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS){
-        throw std::runtime_error("Failed to create Vertex Buffer!");
+        throw std::runtime_error("failed to create Vertex Buffer!");
     }
 
     // 获取内存需求
@@ -1127,7 +1137,7 @@ void HelloTriangleApplication::createBuffer(VkDeviceSize size, VkBufferUsageFlag
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
     if (vkAllocateMemory(logicDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create vertex buffer memory!");
+        throw std::runtime_error("failed to create vertex buffer memory!");
     }
 
     vkBindBufferMemory(logicDevice, buffer, bufferMemory, 0);
@@ -1209,7 +1219,57 @@ void HelloTriangleApplication::createIndexBuffer() {
     vkFreeMemory(logicDevice, stagingBufferMemory, nullptr);
 }
 
+void HelloTriangleApplication::createDescriptorSetLayout() {
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboLayoutBinding.pImmutableSamplers = nullptr;
 
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &uboLayoutBinding;
+
+    if (vkCreateDescriptorSetLayout(logicDevice, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+}
+
+void HelloTriangleApplication::createUniformBuffers() {
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+    uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+
+        vkMapMemory(logicDevice, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+    }
+}
+
+void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+    UniformBufferObject ubo{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f), swapChainImageExtent.width / (float) swapChainImageExtent.height, 0.1f, 10.0f);
+    ubo.proj[1][1] *= -1;
+
+    memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+}
 
 
 // ---- Debug 相关 ----
