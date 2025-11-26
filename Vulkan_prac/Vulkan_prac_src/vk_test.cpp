@@ -1,6 +1,7 @@
 // vk_test.cpp
 #include "vk_test.hpp"
 #include "shader.hpp"
+#include <cmath>
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -56,12 +57,15 @@ void HelloTriangleApplication::initVulkan() {
     createSwapChain();
     createImageView();
     createRenderPass();
+    createDescriptorSetLayout();
     createGraphicsPipeline();
     createFrameBuffers();
     createCommandPool();
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
+    createDescriptorPool();
+    createDescriptorSets();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -77,16 +81,18 @@ void HelloTriangleApplication::mainLoop() {
 void HelloTriangleApplication::cleanup() {
     cleanupSwapChain();
 
+    vkDestroyPipeline(logicDevice, graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(logicDevice, pipelineLayout, nullptr);
+
+    vkDestroyRenderPass(logicDevice, renderPass, nullptr);
+
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyBuffer(logicDevice, uniformBuffers[i], nullptr);
         vkFreeMemory(logicDevice, uniformBuffersMemory[i], nullptr);
     }
 
+    vkDestroyDescriptorPool(logicDevice, descriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(logicDevice, descriptorSetLayout, nullptr);
-    vkDestroyPipeline(logicDevice, graphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(logicDevice, pipelineLayout, nullptr);
-
-    vkDestroyRenderPass(logicDevice, renderPass, nullptr);
 
     vkDestroyBuffer(logicDevice, indexBuffer, nullptr);
     vkFreeMemory(logicDevice, indexBufferMemory, nullptr);
@@ -628,8 +634,9 @@ void HelloTriangleApplication::createGraphicsPipeline(){
     // 使用填充以外的任何模式都需要启用 GPU 功能。
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    // rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;          // 可选
     rasterizer.depthBiasClamp = 0.0f;                   // 可选
@@ -695,8 +702,8 @@ void HelloTriangleApplication::createGraphicsPipeline(){
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0;              // 可选
-    pipelineLayoutInfo.pSetLayouts = nullptr;           // 可选
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 0;      // 可选
     pipelineLayoutInfo.pPushConstantRanges = nullptr;   // 可选
 
@@ -931,6 +938,7 @@ void HelloTriangleApplication::recordCommandBuffer(VkCommandBuffer commandBuffer
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
     vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
     // 完成渲染
@@ -1235,11 +1243,81 @@ void HelloTriangleApplication::createDescriptorSetLayout() {
     if (vkCreateDescriptorSetLayout(logicDevice, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
     }
+}
 
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+void HelloTriangleApplication::createDescriptorPool() {
+    // 使用 VkDescriptorPoolSize 结构描述描述符集将包含哪些描述符类型以及它们的数量
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = static_cast<uint32_t> (MAX_FRAMES_IN_FLIGHT);
+
+    // 每一帧分配一个这些描述符。此池大小结构由主要的 VkDescriptorPoolCreateInfo 引用
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+
+    // 除了可用的单个描述符的最大数量外，还需要指定可以分配的最大描述符集数量
+    poolInfo.maxSets = static_cast<uint32_t> (MAX_FRAMES_IN_FLIGHT);
+
+    if (vkCreateDescriptorPool(logicDevice, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor pool!");
+    }
+}
+
+void HelloTriangleApplication::createDescriptorSets() {
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts = layouts.data();
+
+    descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(logicDevice, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate descriptor sets!");
+    }
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        // 引用缓冲区的描述符（例如我们的统一缓冲区描述符）使用 VkDescriptorBufferInfo 结构进行配置
+        // 此结构指定缓冲区以及其中包含描述符数据的区域
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UniformBufferObject);
+
+        // 如果覆盖整个缓冲区，那么也可以将 VK_WHOLE_SIZE 值用于范围。
+        // 描述符的配置使用 vkUpdateDescriptorSets 函数更新，该函数接受 VkWriteDescriptorSet 结构的数组作为参数。
+
+        // 前两个字段指定要更新的描述符集和绑定。我们给统一缓冲区绑定索引 0。
+        // 请记住，描述符可以是数组，因此我们还需要指定要更新的数组中的第一个索引。我们没有使用数组，因此索引只是 0。
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = descriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+
+        // 我们需要再次指定描述符的类型。
+        // 可以在一个数组中一次更新多个描述符，从索引 dstArrayElement 开始。
+        // descriptorCount 字段指定要更新的数组元素的数量。
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+
+        // 最后一个字段引用一个包含 descriptorCount 结构的数组，该结构实际上配置了描述符。
+        // 根据描述符的类型，您实际上需要使用这三个中的哪一个。
+        // pBufferInfo 字段用于引用缓冲区数据的描述符，
+        // pImageInfo 用于引用图像数据的描述符，
+        // pTexelBufferView 用于引用缓冲区视图的描述符。
+        // 我们的描述符基于缓冲区，因此我们使用 pBufferInfo。
+        descriptorWrite.pBufferInfo = &bufferInfo;
+        descriptorWrite.pImageInfo = nullptr;
+        descriptorWrite.pTexelBufferView = nullptr;
+
+        // 使用 vkUpdateDescriptorSets 应用更新。
+        // 它接受两种类型的数组作为参数：VkWriteDescriptorSet 数组和 VkCopyDescriptorSet 数组。
+        // 后者可用于将描述符相互复制，正如其名称所示
+        vkUpdateDescriptorSets(logicDevice, 1, &descriptorWrite, 0, nullptr);
+    }
 }
 
 void HelloTriangleApplication::createUniformBuffers() {
@@ -1263,8 +1341,24 @@ void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    // ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    // ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+    ubo.model = glm::mat4(1.0f);
+    const float radius = glm::length(glm::vec3(2.0f, 2.0f, 0.0f));
+    glm::vec3 cameraPos = glm::vec3(
+        radius * sin(time), // X 坐标
+        radius * cos(time),               // Y 坐标
+        2.0f                // Z 坐标
+    );
+
+    // 3. 更新 View 矩阵
+    ubo.view = glm::lookAt(
+        cameraPos,                      // 摄像机位置（动态变化）
+        glm::vec3(0.0f, 0.0f, 0.0f),    // 观察目标点（保持在原点）
+        glm::vec3(0.0f, 0.0f, 1.0f)     // 上方向
+    );
+
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainImageExtent.width / (float) swapChainImageExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 

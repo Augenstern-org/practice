@@ -84,6 +84,8 @@ private:
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
+    VkDescriptorPool descriptorPool;
+    std::vector<VkDescriptorSet> descriptorSets;
 
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -162,6 +164,8 @@ private:
     // 着色器
     // 绑定顶点数据
     void createDescriptorSetLayout();
+    void createDescriptorPool();
+    void createDescriptorSets();
     static std::vector<char> readFile(const std::string& filename);
     void createVertexBuffer();
     void createIndexBuffer();
