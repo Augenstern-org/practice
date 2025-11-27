@@ -23,31 +23,43 @@ const std::vector<const char*> deviceExtensions = {
 };
 
 void vk::run() {
-    void initWindow();
-    void initVulkan();
-    void mainLoop();
-    void cleanup();
+    initWindow();
+    initVulkan();
+    mainLoop();
+    cleanup();
 }
 
 void vk::initWindow() {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    window = glfwCreateWindow(windowInfo.width, windowInfo.height, "Vulkan", nullptr, nullptr);
+    window = glfwCreateWindow(windowInfo.width, windowInfo.height, windowInfo.title, nullptr, nullptr);
     glfwSetWindowUserPointer(window, this);
     // glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 }
 
 void vk::initVulkan() {
     createInstance();
+    setupDebugMessenger();
+    createSurface();
+    pickupPhysicalDevice();
 }
 
 void vk::mainLoop() {
-
+    while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+    }
 }
 
 void vk::cleanup() {
 
+    if (enableValidationLayers) {
+        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+    }
+    vkDestroySurfaceKHR(instance, surface, nullptr);
+    vkDestroyInstance(instance, nullptr);
+    glfwDestroyWindow(window);
+    glfwTerminate();
 }
 
 void vk::createInstance() {
@@ -118,6 +130,17 @@ std::vector<const char *> vk::getRequiredExtensions() {
     return extensions;
 }
 
+VkResult vk::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
+    const VkAllocationCallbacks *pAllocator, VkDebugUtilsMessengerEXT*pDebugMessenger) {
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)
+            vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+
+    if (func != nullptr)
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    else
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+
 void vk::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
     auto app = reinterpret_cast<vk*>(glfwGetWindowUserPointer(window));
     app->framebufferResized = true;
@@ -146,4 +169,148 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk::debugCallback(
     return VK_FALSE;
 }
 
+SwapChainDetails vk::querySwapChainSupport(VkPhysicalDevice c_device) {
+    SwapChainDetails details;
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(c_device, surface, &details.capabilities);
+
+    uint32_t formatCount;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(c_device, surface, &formatCount, nullptr);
+
+    if (formatCount != 0) {
+        details.formats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(c_device, surface, &formatCount, details.formats.data());
+    }
+
+    uint32_t presentModeCount;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(c_device, surface, &presentModeCount, nullptr);
+
+    if (presentModeCount != 0) {
+        details.modes.resize(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(c_device, surface, &presentModeCount, details.modes.data());
+    }
+
+    return details;
+}
+
+void vk::setupDebugMessenger() {
+    if (!enableValidationLayers) return;
+
+    VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+    populateDebugMessengerCreateInfo(createInfo);
+
+    if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create debug messenger!");
+    }
+}
+
+void vk::createSurface() {
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
+        throw std::runtime_error("failed to Create Window Surface!");
+    }
+}
+
+void vk::pickupPhysicalDevice() {
+    uint32_t deviceCount;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    if (deviceCount == 0) {
+        throw std::runtime_error("failed to enumerate physical device!");
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+    for (const auto& c_device : devices) {
+        if (isPhysicalDeviceSuitable(c_device)) {
+            device = c_device;
+            break;
+        }
+    }
+    if (device == VK_NULL_HANDLE){
+        throw std::runtime_error("No Physical Device Available!");
+    }
+}
+
+bool vk::isPhysicalDeviceSuitable(VkPhysicalDevice c_device) {
+    VkPhysicalDeviceProperties deviceProperties;
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceProperties(c_device, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(c_device, &deviceFeatures);
+    q_family = findQueueFamily(c_device);
+    bool deviceExtensionSupported = checkDeviceExtensionSupported(c_device);
+    bool swapChainAdequate = false;
+
+    if (deviceExtensionSupported) {
+        SwapChainDetails details = querySwapChainSupport(c_device);
+
+        swapChainAdequate = !details.formats.empty() && !details.modes.empty();
+    }
+
+    const bool condition = (q_family.isComplete() &&
+                            (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) &&
+                            deviceFeatures.geometryShader &&
+                            deviceExtensionSupported &&
+                            swapChainAdequate
+    );
+    return condition;
+}
+
+QueueFamily vk::findQueueFamily(VkPhysicalDevice c_device) {
+    QueueFamily rQueueFamily;
+    uint32_t queueFamilyPropertiesCount;
+    vkGetPhysicalDeviceQueueFamilyProperties(c_device, &queueFamilyPropertiesCount, nullptr);
+    if (queueFamilyPropertiesCount == 0) {
+        throw std::runtime_error("there's no queue family!");
+    }
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyPropertiesCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(c_device, &queueFamilyPropertiesCount, queueFamilies.data());
+
+    int index = 0;
+
+    for (const auto& qf : queueFamilies) {
+        if (qf.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            rQueueFamily.graphicsQueueFamily = index;
+        }
+
+        VkBool32 isPresentModeSupported = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(c_device, index, surface, &isPresentModeSupported);
+        if (isPresentModeSupported) {
+            rQueueFamily.presentQueueFamily = index;
+        }
+        if (rQueueFamily.isComplete()) {
+            break;
+        }
+        ++index;
+    }
+
+    if (!rQueueFamily.isComplete()) {
+        throw std::runtime_error("failed to find suitable queue families!");
+    }
+    return rQueueFamily;
+}
+
+bool vk::checkDeviceExtensionSupported(VkPhysicalDevice c_device) {
+    uint32_t deviceExtensionCount;
+    vkEnumerateDeviceExtensionProperties(c_device, nullptr, &deviceExtensionCount, nullptr);
+    std::vector<VkExtensionProperties> deviceExtensionProperties(deviceExtensionCount);
+    vkEnumerateDeviceExtensionProperties(c_device, nullptr, &deviceExtensionCount, deviceExtensionProperties.data());
+
+    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+    for (const auto& Extension : deviceExtensionProperties) {
+        requiredExtensions.erase(Extension.extensionName);
+    }
+    return requiredExtensions.empty();
+}
+
+void vk::DestroyDebugUtilsMessengerEXT(VkInstance instance,
+    VkDebugUtilsMessengerEXT debugMessenger,
+    const VkAllocationCallbacks* pAllocator) {
+
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)
+        vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+
+    if (func != nullptr)
+        func(instance, debugMessenger, pAllocator);
+}
 

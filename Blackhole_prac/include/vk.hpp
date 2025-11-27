@@ -43,7 +43,7 @@ struct SwapChainDetails{
 struct windowInfo {
     uint32_t width = 800;
     uint32_t height = 600;
-    const char* title = "Black Hole Application";
+    const char* title = "Black Hole Ray Tracing Simulation";
 };
 
 class vk {
@@ -62,23 +62,43 @@ private:
 
 private:
     VkInstance instance{};
+    VkSurfaceKHR surface;
+    VkPhysicalDevice device = VK_NULL_HANDLE;
+    QueueFamily q_family;
 
 private:
+    // Debug 相关
     bool framebufferResized = false;
+    VkDebugUtilsMessengerEXT debugMessenger;
 
 private:
     // 辅助函数
-    void framebufferResizeCallback(GLFWwindow* window, int width, int height);
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
     bool checkValidationLayerSupport();
     std::vector<const char*> getRequiredExtensions();
+    VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+                                          const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
+    SwapChainDetails querySwapChainSupport(VkPhysicalDevice c_device);
+    bool checkDeviceExtensionSupported(VkPhysicalDevice c_device);
+    QueueFamily findQueueFamily(VkPhysicalDevice c_device);
+    bool isPhysicalDeviceSuitable(VkPhysicalDevice c_device);
 private:
     void createInstance();
+    void setupDebugMessenger();
+    void createSurface();
+    void pickupPhysicalDevice();
+
+private:
+    // 销毁函数
+    void DestroyDebugUtilsMessengerEXT(VkInstance instance,
+    VkDebugUtilsMessengerEXT debugMessenger,
+    const VkAllocationCallbacks* pAllocator);
 };
 
 #endif //BLACKHOLE_PRAC_VK_HPP
