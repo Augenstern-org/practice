@@ -43,7 +43,7 @@ struct SwapChainDetails{
 struct windowInfo {
     uint32_t width = 800;
     uint32_t height = 600;
-    const char* title = "Black Hole Ray Tracing Simulation COMPUTE_SHADER";
+    const char* title = "Black Hole Ray Tracing Simulation";
 };
 
 class vk {
@@ -70,11 +70,6 @@ private:
     VkQueue presentQueue;
     VkSwapchainKHR swapChain;
     VkExtent2D swapChainExtent;
-    VkFormat swapChainImageFormat;
-    VkExtent2D swapChainImageExtent;
-    std::vector<VkImage> swapChainImages;
-    std::vector<VkImageView> swapChainImageViews;
-    VkRenderPass renderPass;
 
 private:
     // Debug 相关
@@ -98,9 +93,6 @@ private:
     bool checkDeviceExtensionSupported(VkPhysicalDevice c_device);
     QueueFamily findQueueFamily(VkPhysicalDevice c_device);
     bool isPhysicalDeviceSuitable(VkPhysicalDevice c_device);
-    VkSurfaceFormatKHR chooseSurfaceFormat(const SwapChainDetails& details);
-    VkPresentModeKHR choosePresentMode(const SwapChainDetails& details);
-    VkExtent2D chooseExtent2D(const SwapChainDetails& details);
 private:
     void createInstance();
     void setupDebugMessenger();
@@ -108,15 +100,12 @@ private:
     void pickupPhysicalDevice();
     void createLogicDevice();
     void createSwapChain();
-    void createImageView();
-    void createRenderPass();
 
 private:
     // 销毁函数
     void DestroyDebugUtilsMessengerEXT(VkInstance instance,
     VkDebugUtilsMessengerEXT debugMessenger,
     const VkAllocationCallbacks* pAllocator);
-    void cleanupSwapChain();
 };
 
 #endif //BLACKHOLE_PRAC_VK_HPP

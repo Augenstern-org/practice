@@ -22,9 +22,9 @@ const std::vector<const char*> validationLayers = {
 // 设备拓展
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    // VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
-    // VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-    // VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME
+    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+    VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+    VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME
 };
 
 void vk::run() {
@@ -50,8 +50,6 @@ void vk::initVulkan() {
     pickupPhysicalDevice();
     createLogicDevice();
     createSwapChain();
-    createImageView();
-    createRenderPass();
 }
 
 void vk::mainLoop() {
@@ -61,10 +59,6 @@ void vk::mainLoop() {
 }
 
 void vk::cleanup() {
-
-    cleanupSwapChain();
-
-    vkDestroyRenderPass(device, renderPass, nullptr);
 
     vkDestroyDevice(device, nullptr);
     if (enableValidationLayers) {
@@ -236,6 +230,7 @@ void vk::pickupPhysicalDevice() {
 
     for (const auto& c_device : devices) {
         if (isPhysicalDeviceSuitable(c_device)) {
+            std::cout << isPhysicalDeviceSuitable(c_device) << std::endl;
             physicalDevice = c_device;
             break;
         }
@@ -246,7 +241,6 @@ void vk::pickupPhysicalDevice() {
 }
 
 void vk::createLogicDevice() {
-/*
     // 开启 VK_Ray_Tracing 拓展
     VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeaturesKHR{};
     accelerationStructureFeaturesKHR.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
@@ -268,7 +262,6 @@ void vk::createLogicDevice() {
     if (!accelerationStructureFeaturesKHR.accelerationStructure || !rayTracingPipelineFeaturesKHR.rayTracingPipeline) {
         throw std::runtime_error("failed to switch on the required features!");
     }
-*/
 
     QueueFamily indices = findQueueFamily(physicalDevice);
     std::set<uint32_t> set_indices = {q_family.graphicQueueFamily.value(), q_family.presentQueueFamily.value()};
@@ -293,7 +286,7 @@ void vk::createLogicDevice() {
     deviceInfo.ppEnabledExtensionNames = deviceExtensions.data();
     deviceInfo.pQueueCreateInfos = queueInfos.data();
     deviceInfo.queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size());
-    // deviceInfo.pNext = &deviceFeatures2;
+    deviceInfo.pNext = &deviceFeatures2;
 
     if (vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device) != VK_SUCCESS) {
         throw std::runtime_error("failed to create vk device!");
@@ -304,126 +297,6 @@ void vk::createLogicDevice() {
 }
 
 void vk::createSwapChain() {
-    SwapChainDetails swapChainSupport = querySwapChainSupport(physicalDevice);
-
-    VkSurfaceFormatKHR surfaceFormat = chooseSurfaceFormat(swapChainSupport);
-    VkPresentModeKHR presentMode = choosePresentMode(swapChainSupport);
-    VkExtent2D extent = chooseExtent2D(swapChainSupport);
-
-    uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
-        imageCount = swapChainSupport.capabilities.maxImageCount;
-    }
-
-    VkSwapchainCreateInfoKHR swapChainInfo{};
-    swapChainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    swapChainInfo.surface = surface;
-    swapChainInfo.minImageCount = imageCount;
-    swapChainInfo.imageFormat = surfaceFormat.format;
-    swapChainInfo.imageColorSpace = surfaceFormat.colorSpace;
-    swapChainInfo.imageExtent = extent;
-    swapChainInfo.imageArrayLayers = 1;
-    swapChainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    QueueFamily indices = findQueueFamily(physicalDevice);
-    uint32_t queueFamilyIndices[] = {indices.graphicQueueFamily.value(), indices.presentQueueFamily.value()};
-
-    if (indices.graphicQueueFamily != indices.presentQueueFamily) {
-        swapChainInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        swapChainInfo.queueFamilyIndexCount = 2;
-        swapChainInfo.pQueueFamilyIndices = queueFamilyIndices;
-    } else {
-        swapChainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        swapChainInfo.queueFamilyIndexCount = 0;
-        swapChainInfo.pQueueFamilyIndices = nullptr;
-    }
-    swapChainInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-    swapChainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapChainInfo.presentMode = presentMode;
-    swapChainInfo.clipped = VK_TRUE;
-    swapChainInfo.oldSwapchain = VK_NULL_HANDLE;
-
-    if (vkCreateSwapchainKHR(device, &swapChainInfo, nullptr, &swapChain) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create swap chain!");
-    }
-
-    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
-    swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
-
-    swapChainImageFormat = surfaceFormat.format;
-    swapChainImageExtent = extent;
-}
-
-void vk::createImageView() {
-    swapChainImageViews.resize(swapChainImages.size());
-    for (int index = 0; index != swapChainImages.size(); ++index){
-        VkImageViewCreateInfo imageViewCreateInfo{};
-        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageViewCreateInfo.image = swapChainImages[index];
-        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        imageViewCreateInfo.format = swapChainImageFormat;
-        imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;    // 图像用途
-        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;                          // 初始mipmap层数
-        imageViewCreateInfo.subresourceRange.levelCount = 1;                            // mipmap层数
-        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-        imageViewCreateInfo.subresourceRange.layerCount = 1;
-        if (vkCreateImageView(device, &imageViewCreateInfo, nullptr, &swapChainImageViews[index]) != VK_SUCCESS){
-            throw std::runtime_error("failed to create image view!");
-        }
-    }
-}
-
-void vk::createRenderPass() {
-    VkAttachmentDescription colorAttachment{};
-    colorAttachment.flags = 0;
-    colorAttachment.format = swapChainImageFormat;
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-
-    VkSubpassDependency dependency{};
-    // 指定依赖项与被依赖项的索引
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    // 指定等待的操作以及该操作发生的阶段 -> 等待交换链完成从图像的读取
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    // 等待颜色附件阶段
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    VkRenderPassCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    // 指定附件与子通道
-    createInfo.attachmentCount = 1;
-    createInfo.pAttachments = &colorAttachment;
-    createInfo.subpassCount = 1;
-    createInfo.pSubpasses = &subpass;
-    // 指定依赖项的数组
-    createInfo.dependencyCount = 1;
-    createInfo.pDependencies = &dependency;
-
-    if (vkCreateRenderPass(device, &createInfo, nullptr, &renderPass) != VK_SUCCESS){
-        throw std::runtime_error("failed to create render pass!");
-    }
 }
 
 bool vk::isPhysicalDeviceSuitable(VkPhysicalDevice c_device) {
@@ -449,51 +322,6 @@ bool vk::isPhysicalDeviceSuitable(VkPhysicalDevice c_device) {
     );
     return condition;
 }
-
-VkSurfaceFormatKHR vk::chooseSurfaceFormat(const SwapChainDetails &details) {
-    const std::vector<VkSurfaceFormatKHR>& available_formats = details.formats;
-    for (const auto& available_format : available_formats) {
-        if (available_format.format == VK_FORMAT_B8G8R8_SRGB &&
-            available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-
-            return available_format;
-        }
-    }
-    return available_formats[0];
-}
-
-VkPresentModeKHR vk::choosePresentMode(const SwapChainDetails &details) {
-    const std::vector<VkPresentModeKHR>& available_present_modes = details.modes;
-    for (const auto& available_present_mode : available_present_modes) {
-        if (available_present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-            return available_present_mode;
-        }
-    }
-    return VK_PRESENT_MODE_FIFO_KHR;
-}
-
-VkExtent2D vk::chooseExtent2D(const SwapChainDetails &details) {
-    const VkSurfaceCapabilitiesKHR& capabilities = details.capabilities;
-    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
-        return capabilities.currentExtent;
-    } else {
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
-
-        VkExtent2D actualExtent = {
-            static_cast<uint32_t>(width),
-            static_cast<uint32_t>(height)
-        };
-        actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width,
-                                capabilities.maxImageExtent.width);
-
-        actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height,
-                                capabilities.maxImageExtent.height);
-
-        return actualExtent;
-    }
-}
-
 
 QueueFamily vk::findQueueFamily(VkPhysicalDevice c_device) {
     QueueFamily rQueueFamily;
@@ -552,13 +380,5 @@ void vk::DestroyDebugUtilsMessengerEXT(VkInstance instance,
 
     if (func != nullptr)
         func(instance, debugMessenger, pAllocator);
-}
-
-void vk::cleanupSwapChain() {
-    for (auto imageView : swapChainImageViews) {
-        vkDestroyImageView(device, imageView, nullptr);
-    }
-
-    vkDestroySwapchainKHR(device, swapChain, nullptr);
 }
 
