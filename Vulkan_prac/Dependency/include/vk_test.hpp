@@ -113,7 +113,7 @@ private:
 
     // Vulkan 物理设备
     void pickupPhysicalDevice();
-    bool isDeviceSuitable(VkPhysicalDevice currentDevice);
+    bool isDevic eSuitable(VkPhysicalDevice currentDevice);
 
     // Vulkan 队列族
     QueueFamily findQueueFamilyIndex(VkPhysicalDevice c_device);
