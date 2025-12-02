@@ -62,7 +62,7 @@ void vk::initWindow() {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    window = glfwCreateWindow(windowInfo.width, windowInfo.height, windowInfo.title, nullptr, nullptr);
+    window = glfwCreateWindow(appWindowInfo.width, appWindowInfo.height, appWindowInfo.title, nullptr, nullptr);
     glfwSetWindowUserPointer(window, this);
     // glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 }
@@ -83,6 +83,7 @@ void vk::initVulkan() {
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
+    createShaderStorageBuffers();
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffers();
@@ -466,13 +467,22 @@ void vk::createDescriptorSetLayout() {
     uboLayoutBinding.binding = 0;
     uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     uboLayoutBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutBinding ssboLayoutBinding{};
+    ssboLayoutBinding.binding = 1;
+    ssboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    ssboLayoutBinding.descriptorCount = 1;
+    ssboLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_VERTEX_BIT;
+    ssboLayoutBinding.pImmutableSamplers = nullptr;
+
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, ssboLayoutBinding};
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &uboLayoutBinding;
+    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    layoutInfo.pBindings = bindings.data();
 
     if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
@@ -762,12 +772,30 @@ void vk::createUniformBuffers() {
     uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                uniformBuffers[i], uniformBuffersMemory[i]);
 
         vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
     }
 }
 
+void vk::createShaderStorageBuffers() {
+
+    shaderStorageBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    shaderStorageBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i != MAX_FRAMES_IN_FLIGHT; ++i) {
+        createBuffer(ssboSize,
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                    shaderStorageBuffers[i],
+                    shaderStorageBuffersMemory[i]
+        );
+    }
+}
+
+/*
 void vk::createDescriptorPool() {
     // 使用 VkDescriptorPoolSize 结构描述描述符集将包含哪些描述符类型以及它们的数量
     VkDescriptorPoolSize poolSize{};
@@ -787,9 +815,39 @@ void vk::createDescriptorPool() {
         throw std::runtime_error("failed to create descriptor pool!");
     }
 }
+*/
 
+void vk::createDescriptorPool() {
+    // 使用数组来容纳 UBO 和 SSBO 两种类型
+    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+
+    // 1. UBO (Binding 0)
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    // 2. SSBO (Binding 1) - 新增
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    // 确保有足够的空间容纳 MAX_FRAMES_IN_FLIGHT 个 SSBO
+    poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    // 描述符池创建信息
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    // 池大小数量改为 2
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size()); // 2
+    poolInfo.pPoolSizes = poolSizes.data();
+
+    // 可以分配的最大描述符集数量保持不变 (MAX_FRAMES_IN_FLIGHT)
+    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor pool!");
+    }
+}
+
+/*
 void vk::createDescriptorSets() {
-        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
@@ -825,6 +883,65 @@ void vk::createDescriptorSets() {
         vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
     }
 }
+*/
+void vk::createDescriptorSets() {
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo{};
+    // ... 分配信息保持不变 ...
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts = layouts.data();
+
+    descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate descriptor sets!");
+    }
+
+    // 你的 SSBO 大小计算和 buffer 容器必须是可用的
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        // --- 1. UBO 写入信息 (Binding 0) ---
+        VkDescriptorBufferInfo uboInfo{};
+        uboInfo.buffer = uniformBuffers[i];
+        uboInfo.offset = 0;
+        uboInfo.range = sizeof(UniformBufferObject);
+
+        VkWriteDescriptorSet uboWrite{};
+        uboWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uboWrite.dstSet = descriptorSets[i];
+        uboWrite.dstBinding = 0; // UBO 绑定
+        uboWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboWrite.descriptorCount = 1;
+        uboWrite.pBufferInfo = &uboInfo;
+
+        // --- 2. SSBO 写入信息 (Binding 1) ---
+        VkDescriptorBufferInfo ssboInfo{};
+        ssboInfo.buffer = shaderStorageBuffers[i]; // 你的 SSBO 句柄
+        ssboInfo.offset = 0;
+        // 使用 SSBO 的大小
+        ssboInfo.range = ssboSize; // 假设 ssboSize 是你计算的 SSBO 总大小
+
+        VkWriteDescriptorSet ssboWrite{};
+        ssboWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        ssboWrite.dstSet = descriptorSets[i];
+        ssboWrite.dstBinding = 1; // SSBO 绑定
+        // 描述符类型是 STORAGE_BUFFER
+        ssboWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        ssboWrite.descriptorCount = 1;
+        ssboWrite.pBufferInfo = &ssboInfo;
+
+        // --- 3. 批量更新 ---
+        // 将 UBO 和 SSBO 写入信息组合成一个数组
+        std::array<VkWriteDescriptorSet, 2> descriptorWrites = {uboWrite, ssboWrite};
+
+        vkUpdateDescriptorSets(device,
+                               static_cast<uint32_t>(descriptorWrites.size()),
+                               descriptorWrites.data(),
+                               0, nullptr
+        );
+    }
+}
 
 void vk::createCommandBuffers() {
     commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -832,7 +949,7 @@ void vk::createCommandBuffers() {
     allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocateInfo.commandPool = commandPool;
     allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocateInfo.commandBufferCount = (uint32_t) commandBuffers.size();
+    allocateInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
 
     if (vkAllocateCommandBuffers(device, &allocateInfo, commandBuffers.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate command buffers!");

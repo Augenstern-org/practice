@@ -45,7 +45,47 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };
 
+struct ShaderStorageBufferObject {
+    // 用于储存每个像素的计算结果
+    glm::vec4 finalColor;
+    glm::vec4 hitPosition;
+
+    float distance;
+};
+
 // ----------------------------------------------------------------------------------------------
+// 好累写不动了
+// -------------------------------------------------------------------------------------
+// 1.Descriptor Set Layout
+//     定义资源的结构蓝图。 指定每个槽位 (binding) 是 UBO, SSBO, 还是 Sampler。
+// 2.Pipeline Layout
+//     将 DescriptorSetLayout 关联到 Pipeline。 (定义管线使用哪套资源)
+// -------------------------------------------------------------------------------------
+// 3.Descriptor Pool
+//     描述符内存工厂。 预分配描述符 (Set 内的槽位) 的总容量。
+// 4.Descriptor Set
+//     实际的资源集合。 从 Pool 中分配一个 Layout 结构的实例。
+// 5.Buffer/Image
+//     创建底层数据存储。 (创建 VkBuffer 和 VkDeviceMemory)
+// 6.Update Descriptor Sets
+//     连接资源。 将第 5 步的 Buffer 链接到第 4 步 Set 中的指定 binding 槽位。
+// -------------------------------------------------------------------------------------
+// 7.vkCmdCopyBuffer
+//     数据上传。 仅用于将数据从 CPU 可见的 临时缓冲区 复制到 GPU Only 的 SSBO 中。
+//     时机： 记录 Command Buffer 时。
+// 8.vkCmdBindDescriptorSets
+//     绑定资源。 在绘制/计算前，告诉 GPU 使用第 4 步创建的 DescriptorSet。
+//     时机： 记录 Command Buffer 时。
+// 9.vkCmdPipelineBarrier
+//     同步。 确保前一个操作 (如 SSBO 写入) 完成后，下一个操作 (如 SSBO 读取) 再开始。
+//     时机： 记录 Command Buffer 时。
+// 10.vkQueueSubmit
+//     提交执行。 将包含所有 vkCmd 操作的 Command Buffer 提交给 GPU 队列执行。
+// -------------------------------------------------------------------------------------
+// 核心作用总结：
+//     Binding: 资源的槽位索引，连接 Shader 和 Descriptor Set。
+//     Descriptor Set: 一组资源的容器，方便整体切换。
+//     Descriptor Pool: 描述符 Set 的分配器，提高资源分配效率。
 
 struct QueueFamily{
     std::optional<uint32_t> graphicQueueFamily;
@@ -81,7 +121,7 @@ private:
 
 private:
     GLFWwindow* window = nullptr;
-    windowInfo windowInfo;
+    windowInfo appWindowInfo;
 
 private:
     VkInstance instance{};
@@ -113,6 +153,9 @@ private:
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
+    std::vector<VkBuffer> shaderStorageBuffers;
+    std::vector<VkDeviceMemory> shaderStorageBuffersMemory;
+    VkDeviceSize ssboSize = sizeof(ShaderStorageBufferObject) * appWindowInfo.width * appWindowInfo.height;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
@@ -168,6 +211,7 @@ private:
     void createVertexBuffer();
     void createIndexBuffer();
     void createUniformBuffers();
+    void createShaderStorageBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
     void createCommandBuffers();
