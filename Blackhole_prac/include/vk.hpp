@@ -45,12 +45,11 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };
 
-struct ShaderStorageBufferObject {
+struct PixelResult {
     // 用于储存每个像素的计算结果
     glm::vec4 finalColor;
-    glm::vec4 hitPosition;
-
-    float distance;
+    glm::vec4 hitPosition_and_padding; // 使用 vec4 确保对齐
+    glm::vec4 pathLength_and_padding;  // 使用 vec4 确保对齐
 };
 
 // ----------------------------------------------------------------------------------------------
@@ -155,7 +154,7 @@ private:
     std::vector<void*> uniformBuffersMapped;
     std::vector<VkBuffer> shaderStorageBuffers;
     std::vector<VkDeviceMemory> shaderStorageBuffersMemory;
-    VkDeviceSize ssboSize = sizeof(ShaderStorageBufferObject) * appWindowInfo.width * appWindowInfo.height;
+    VkDeviceSize ssboSize;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
@@ -208,13 +207,14 @@ private:
     void createGraphicsPipeline();
     void createFrameBuffers();
     void createCommandPool();
-    void createVertexBuffer();
-    void createIndexBuffer();
-    void createUniformBuffers();
-    void createShaderStorageBuffers();
-    void createDescriptorPool();
-    void createDescriptorSets();
-    void createCommandBuffers();
+    // void createVertexBuffer();
+    // void createIndexBuffer();
+    void createComputePipeline(); // NEW
+    void createUniformBuffers(); // 确保大小正确
+    void createShaderStorageBuffers(); // 确保 SSBO 大小基于分辨率
+    void createDescriptorPool(); // 添加 STORAGE_BUFFER 容量
+    void createDescriptorSets(); // 同时绑定 UBO 和 SSBO
+    void createCommandBuffers(); // 核心修改：Compute + Barrier + Graphics
     void createSyncObjects();
 
 private:

@@ -80,8 +80,7 @@ void vk::initVulkan() {
     createGraphicsPipeline();
     createFrameBuffers();
     createCommandPool();
-    createVertexBuffer();
-    createIndexBuffer();
+    createComputePipeline();
     createUniformBuffers();
     createShaderStorageBuffers();
     createDescriptorPool();
@@ -719,6 +718,11 @@ void vk::createCommandPool() {
     }
 }
 
+void vk::createComputePipeline() {
+    // 专用于计算的管线
+}
+
+/*
 void vk::createVertexBuffer() {
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
@@ -763,6 +767,7 @@ void vk::createIndexBuffer() {
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
+*/
 
 void vk::createUniformBuffers() {
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
@@ -781,6 +786,10 @@ void vk::createUniformBuffers() {
 }
 
 void vk::createShaderStorageBuffers() {
+    const size_t width = 1920;
+    const size_t height = 1080;
+    const size_t elementCount = width * height;
+    ssboSize = sizeof(PixelResult) * elementCount;
 
     shaderStorageBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     shaderStorageBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
