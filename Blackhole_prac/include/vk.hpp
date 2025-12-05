@@ -5,10 +5,17 @@
 #define BLACKHOLE_PRAC_VK_HPP
 
 #include <vulkan/vulkan.h>
-#define NOMINMAX
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
+
+#ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
+#define NOMINMAX
+#endif
+
+#ifdef __linux__
+#define GLFW_EXPOSE_NATIVE_LINUX
+#endif
 
 #include <GLFW/glfw3.h>
 #include <vector>
@@ -89,10 +96,12 @@ struct PixelResult {
 struct QueueFamily{
     std::optional<uint32_t> graphicQueueFamily;
     std::optional<uint32_t> presentQueueFamily;
+    std::optional<uint32_t> computeQueueFamily;
 
     bool isComplete(){
         return graphicQueueFamily.has_value() &&
-                presentQueueFamily.has_value();
+               presentQueueFamily.has_value() &&
+               computeQueueFamily.has_value();
     }
 };
 
@@ -130,6 +139,7 @@ private:
     VkDevice device;
     VkQueue graphicQueue;
     VkQueue presentQueue;
+    VkQueue computeQueue;
     VkSwapchainKHR swapChain;
     VkExtent2D swapChainExtent;
     VkFormat swapChainImageFormat;
@@ -140,8 +150,10 @@ private:
     VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
-    VkPipelineLayout pipelineLayout;
+    VkPipelineLayout graphicPipelineLayout;
+    VkPipelineLayout computePipelineLayout;
     VkPipeline graphicsPipeline;
+    VkPipeline computePipeline;
     std::vector<VkFramebuffer> swapChainFramebuffers;
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;

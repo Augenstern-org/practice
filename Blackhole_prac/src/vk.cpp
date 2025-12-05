@@ -306,7 +306,9 @@ void vk::createLogicDevice() {
 */
 
     QueueFamily indices = findQueueFamily(physicalDevice);
-    std::set<uint32_t> set_indices = {q_family.graphicQueueFamily.value(), q_family.presentQueueFamily.value()};
+    std::set<uint32_t> set_indices = {indices.graphicQueueFamily.value(),
+                                      indices.presentQueueFamily.value(),
+                                      indices.computeQueueFamily.value()};
 
     float queueProperties = 1.0f;
     std::vector<VkDeviceQueueCreateInfo> queueInfos;
@@ -336,6 +338,7 @@ void vk::createLogicDevice() {
 
     vkGetDeviceQueue(device, q_family.graphicQueueFamily.value(), 0, &graphicQueue);
     vkGetDeviceQueue(device, q_family.presentQueueFamily.value(), 0, &presentQueue);
+    vkGetDeviceQueue(device, q_family.computeQueueFamily.value(), 0, &computeQueue);
 }
 
 void vk::createSwapChain() {
@@ -633,8 +636,8 @@ void vk::createGraphicsPipeline() {
     pipelineLayoutInfo.pushConstantRangeCount = 0;      // 可选
     pipelineLayoutInfo.pPushConstantRanges = nullptr;   // 可选
 
-    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create pipeline layout!");
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &graphicPipelineLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create graphic pipeline layout!");
     }
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -652,7 +655,7 @@ void vk::createGraphicsPipeline() {
     pipelineInfo.pNext = nullptr;
 
     // 引用描述固定功能阶段的所有结构
-    pipelineInfo.layout = pipelineLayout;
+    pipelineInfo.layout = graphicPipelineLayout;
 
     // 之后是管线布局，它是一个 Vulkan 句柄，而不是一个结构指针
     pipelineInfo.renderPass = renderPass;
@@ -720,6 +723,34 @@ void vk::createCommandPool() {
 
 void vk::createComputePipeline() {
     // 专用于计算的管线
+    auto computeShaderCode = readFile("~/code/practice/Blackhole_prac/src/shader/comp.spv");
+    VkShaderModule computeShaderModule = createShaderModule(computeShaderCode);
+
+    VkPipelineShaderStageCreateInfo computeShaderStageInfo{};
+    computeShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    computeShaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    computeShaderStageInfo.module = computeShaderModule;
+    computeShaderStageInfo.pName = "main";
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &computePipelineLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create compute pipeline layout!");
+    }
+
+    VkComputePipelineCreateInfo computePipelineInfo{};
+    computePipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineInfo.stage = computeShaderStageInfo;
+    computePipelineInfo.layout = computePipelineLayout;
+
+    if (vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineInfo, nullptr, &computePipeline) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create compute pipeline!");
+    }
+
+    vkDestroyShaderModule(device, computeShaderModule, nullptr);
 }
 
 /*
@@ -1194,6 +1225,10 @@ QueueFamily vk::findQueueFamily(VkPhysicalDevice c_device) {
     for (const auto& qf : queueFamilies) {
         if (qf.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             rQueueFamily.graphicQueueFamily = index;
+        }
+
+        if (qf.queueFlags & VK_QUEUE_COMPUTE_BIT){
+            rQueueFamily.computeQueueFamily = index;
         }
 
         VkBool32 isPresentModeSupported = VK_FALSE;
