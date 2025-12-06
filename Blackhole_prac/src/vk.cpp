@@ -336,9 +336,9 @@ void vk::createLogicDevice() {
         throw std::runtime_error("failed to create vk device!");
     }
 
-    vkGetDeviceQueue(device, q_family.graphicQueueFamily.value(), 0, &graphicQueue);
-    vkGetDeviceQueue(device, q_family.presentQueueFamily.value(), 0, &presentQueue);
-    vkGetDeviceQueue(device, q_family.computeQueueFamily.value(), 0, &computeQueue);
+    vkGetDeviceQueue(device, indices.graphicQueueFamily.value(), 0, &graphicQueue);
+    vkGetDeviceQueue(device, indices.presentQueueFamily.value(), 0, &presentQueue);
+    vkGetDeviceQueue(device, indices.computeQueueFamily.value(), 0, &computeQueue);
 }
 
 void vk::createSwapChain() {
@@ -492,8 +492,8 @@ void vk::createDescriptorSetLayout() {
 }
 
 void vk::createGraphicsPipeline() {
-    auto vertShaderCode = readFile("../../../Vulkan_prac_src/shader/vert.spv");
-    auto fragShaderCode = readFile("../../../Vulkan_prac_src/shader/frag.spv");
+    auto vertShaderCode = readFile("~/code/practice/Blackhole_prac/src/shader/vert.spv");
+    auto fragShaderCode = readFile("~/code/practice/Blackhole_prac/src/shader/frag.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -927,7 +927,7 @@ void vk::createDescriptorSets() {
 void vk::createDescriptorSets() {
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
     VkDescriptorSetAllocateInfo allocInfo{};
-    // ... 分配信息保持不变 ...
+    // 分配信息保持不变
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
     allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -938,7 +938,7 @@ void vk::createDescriptorSets() {
         throw std::runtime_error("failed to allocate descriptor sets!");
     }
 
-    // 你的 SSBO 大小计算和 buffer 容器必须是可用的
+    // SSBO 大小计算和 buffer 容器必须是可用的
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         // --- 1. UBO 写入信息 (Binding 0) ---

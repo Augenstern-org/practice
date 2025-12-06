@@ -281,7 +281,7 @@ bool HelloTriangleApplication::checkDeviceExtensionSupported(VkPhysicalDevice c_
 
 void HelloTriangleApplication::createLogicDevice() {
     QueueFamily indices = findQueueFamilyIndex(device);
-    std::set<uint32_t> set_indices = {q_family.graphicsQueueFamily.value(), q_family.presentQueueFamily.value()};
+    std::set<uint32_t> set_indices = {indices.graphicsQueueFamily.value(), indices.presentQueueFamily.value()};
 
     float queueProperties = 1.0f;
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -314,8 +314,8 @@ void HelloTriangleApplication::createLogicDevice() {
     if (vkCreateDevice(device, &createInfo, nullptr, &logicDevice) != VK_SUCCESS) {
         throw std::runtime_error("failed to Create Logic Device!");
     }
-    vkGetDeviceQueue(logicDevice, q_family.graphicsQueueFamily.value(), 0, &graphicsQueue);
-    vkGetDeviceQueue(logicDevice, q_family.presentQueueFamily.value(), 0, &presentQueue);
+    vkGetDeviceQueue(logicDevice, indices.graphicsQueueFamily.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(logicDevice, indices.presentQueueFamily.value(), 0, &presentQueue);
 }
 
 // Surface 功能：
