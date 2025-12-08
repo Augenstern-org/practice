@@ -92,6 +92,7 @@ void vk::initVulkan() {
 void vk::mainLoop() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+        draw();
     }
 }
 
@@ -306,9 +307,8 @@ void vk::createLogicDevice() {
 */
 
     QueueFamily indices = findQueueFamily(physicalDevice);
-    std::set<uint32_t> set_indices = {indices.graphicQueueFamily.value(),
-                                      indices.presentQueueFamily.value(),
-                                      indices.computeQueueFamily.value()};
+    std::set<uint32_t> set_indices = {indices.computeGraphicQueueFamily.value(),
+                                      indices.presentQueueFamily.value()};
 
     float queueProperties = 1.0f;
     std::vector<VkDeviceQueueCreateInfo> queueInfos;
@@ -336,9 +336,8 @@ void vk::createLogicDevice() {
         throw std::runtime_error("failed to create vk device!");
     }
 
-    vkGetDeviceQueue(device, indices.graphicQueueFamily.value(), 0, &graphicQueue);
+    vkGetDeviceQueue(device, indices.computeGraphicQueueFamily.value(), 0, &computeGraphicQueue);
     vkGetDeviceQueue(device, indices.presentQueueFamily.value(), 0, &presentQueue);
-    vkGetDeviceQueue(device, indices.computeQueueFamily.value(), 0, &computeQueue);
 }
 
 void vk::createSwapChain() {
@@ -364,9 +363,9 @@ void vk::createSwapChain() {
     swapChainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     QueueFamily indices = findQueueFamily(physicalDevice);
-    uint32_t queueFamilyIndices[] = {indices.graphicQueueFamily.value(), indices.presentQueueFamily.value()};
+    uint32_t queueFamilyIndices[] = {indices.computeGraphicQueueFamily.value(), indices.presentQueueFamily.value()};
 
-    if (indices.graphicQueueFamily != indices.presentQueueFamily) {
+    if (indices.computeGraphicQueueFamily != indices.presentQueueFamily) {
         swapChainInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         swapChainInfo.queueFamilyIndexCount = 2;
         swapChainInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -714,7 +713,7 @@ void vk::createCommandPool() {
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicQueueFamily.value();
+    poolInfo.queueFamilyIndex = queueFamilyIndices.computeGraphicQueueFamily.value();
 
     if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create command pool!");
@@ -1201,8 +1200,8 @@ void vk::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(graphicQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(graphicQueue);
+    vkQueueSubmit(computeGraphicQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(computeGraphicQueue);
 
     // 清理缓冲区
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
@@ -1223,12 +1222,8 @@ QueueFamily vk::findQueueFamily(VkPhysicalDevice c_device) {
     int index = 0;
 
     for (const auto& qf : queueFamilies) {
-        if (qf.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            rQueueFamily.graphicQueueFamily = index;
-        }
-
-        if (qf.queueFlags & VK_QUEUE_COMPUTE_BIT){
-            rQueueFamily.computeQueueFamily = index;
+        if (qf.queueFlags & VK_QUEUE_GRAPHICS_BIT && qf.queueFlags & VK_QUEUE_COMPUTE_BIT) {
+            rQueueFamily.computeGraphicQueueFamily = index;
         }
 
         VkBool32 isPresentModeSupported = VK_FALSE;

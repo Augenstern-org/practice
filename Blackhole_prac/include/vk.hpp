@@ -94,14 +94,12 @@ struct PixelResult {
 //     Descriptor Pool: 描述符 Set 的分配器，提高资源分配效率。
 
 struct QueueFamily{
-    std::optional<uint32_t> graphicQueueFamily;
+    std::optional<uint32_t> computeGraphicQueueFamily;
     std::optional<uint32_t> presentQueueFamily;
-    std::optional<uint32_t> computeQueueFamily;
 
     bool isComplete(){
-        return graphicQueueFamily.has_value() &&
-               presentQueueFamily.has_value() &&
-               computeQueueFamily.has_value();
+        return computeGraphicQueueFamily.has_value() &&
+               presentQueueFamily.has_value();
     }
 };
 
@@ -137,7 +135,7 @@ private:
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     QueueFamily q_family;
     VkDevice device;
-    VkQueue graphicQueue;
+    VkQueue computeGraphicQueue;
     VkQueue presentQueue;
     VkQueue computeQueue;
     VkSwapchainKHR swapChain;
@@ -228,6 +226,8 @@ private:
     void createDescriptorSets(); // 同时绑定 UBO 和 SSBO
     void createCommandBuffers(); // 核心修改：Compute + Barrier + Graphics
     void createSyncObjects();
+
+    void draw();
 
 private:
     // 销毁函数
