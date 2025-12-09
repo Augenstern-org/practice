@@ -5,9 +5,9 @@
 // --- C++ 端定义的 PixelResult 结构体在 GLSL 中的等效声明 ---
 // 必须确保与 C++ 端（以及 Compute Shader）的内存布局和大小一致。
 struct PixelResult {
-    // 假设这是 Compute Shader 计算出的最终颜色
+    // Compute Shader 计算出的最终颜色
     vec4 finalColor;
-    // 假设这是 Compute Shader 计算出的击中点位置（用于深度测试）
+    // Compute Shader 计算出的击中点位置（用于深度测试）
     vec4 hitPosition_and_padding;
     // ... 其他数据 ...
 };
@@ -18,6 +18,7 @@ layout(std430, binding = 1) readonly buffer PixelDataSSBO {
     PixelResult pixels[];
 } pixelBuffer;
 
+/*
 // --- Binding 0: UBO (Uniform Buffer Object) ---
 // 用于读取全局参数，例如投影矩阵和 Viewport 大小。
 layout(std140, binding = 0) uniform CameraParams {
@@ -27,6 +28,7 @@ layout(std140, binding = 0) uniform CameraParams {
     float screenWidth;
     float screenHeight;
 } ubo;
+*/
 
 // --- 输出：传递给 Fragment Shader 的数据 ---
 // 传递颜色结果

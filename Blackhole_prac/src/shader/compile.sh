@@ -8,7 +8,7 @@ OUT_DIR="./spv"
 mkdir -p "$OUT_DIR"
 
 for file in "$SHADER_DIR"/*.vert "$SHADER_DIR"/*.frag "$SHADER_DIR"/*.comp; do
-    # 如果文件不存在就跳过（防止 *.vert 不存在时报错）
+    # 如果文件不存在就跳过（防止 *.shader.vert 不存在时报错）
     [ -e "$file" ] || continue
 
     filename=$(basename "$file")

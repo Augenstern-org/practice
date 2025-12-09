@@ -1,0 +1,38 @@
+#version 450
+
+struct PixelResult {
+    // Compute Shader 计算出的最终颜色
+    vec4 finalColor;
+    // Compute Shader 计算出的击中点位置（用于深度测试）
+    vec4 hitPosition_and_padding;
+    // ... 其他数据 ...
+};
+
+
+// -----------------------------------------------------------
+// 尚未在 cpp 文件中添加的结构体与布局
+// -----------------------------------------------------------
+struct CameraParams{
+    vec4 pos;
+};
+
+struct Object{
+    vec4 pos;
+};
+
+layout(std140, binding = 0) uniform CameraParams {
+    mat4 view;
+    mat4 proj;
+    // ... 其他参数 ...
+    float screenWidth;
+    float screenHeight;
+} ubo;
+
+layout(location = 0) out PixelResult;
+// -----------------------------------------------------------
+
+
+
+void main() {
+
+}

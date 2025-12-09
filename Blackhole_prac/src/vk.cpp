@@ -722,7 +722,7 @@ void vk::createCommandPool() {
 
 void vk::createComputePipeline() {
     // 专用于计算的管线
-    auto computeShaderCode = readFile("~/code/practice/Blackhole_prac/src/shader/comp.spv");
+    auto computeShaderCode = readFile("~/code/practice/Blackhole_prac/src/shader/shader.comp.spv");
     VkShaderModule computeShaderModule = createShaderModule(computeShaderCode);
 
     VkPipelineShaderStageCreateInfo computeShaderStageInfo{};
