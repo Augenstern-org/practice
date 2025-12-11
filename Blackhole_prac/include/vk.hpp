@@ -5,11 +5,12 @@
 #define BLACKHOLE_PRAC_VK_HPP
 
 #include <vulkan/vulkan.h>
-#define VK_USE_PLATFORM_WIN32_KHR
+
 #define GLFW_INCLUDE_VULKAN
 
 #ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
+#define VK_USE_PLATFORM_WIN32_KHR
 #define NOMINMAX
 #endif
 
@@ -46,11 +47,34 @@ struct Vertex {
 extern const std::vector<Vertex> vertices;
 extern const std::vector<uint16_t> indices;
 
+// ubo_before
 struct UniformBufferObject {
-    alignas(16) glm::mat4 model;
-    alignas(16) glm::mat4 view;
-    alignas(16) glm::mat4 proj;
+    // alignas(16) glm::mat4 model;
+    // alignas(16) glm::mat4 view;
+    // alignas(16) glm::mat4 proj;
+    glm::vec3 cameraPos; float _pad0;
+    glm::vec3 cameraDir; float _pad1;
+    glm::vec3 cameraUp;  float _pad2;
+    glm::vec3 cameraRight; float _pad3;
+
+    glm::vec2 screenSize; glm::vec2 _pad4;
+
+    glm::vec3 blackholePos_1; float blackholeRadius_1;
+    glm::vec3 blackholePos_2; float blackholeRadius_2;
+    glm::vec3 objectPos; float objectRadius;
 };
+
+// ubo
+//  struct Params {
+//     glm::vec3 cameraPos; float _pad0;
+//     glm::vec3 cameraDir; float _pad1;
+//     glm::vec3 cameraUp;  float _pad2;
+//     glm::vec3 cameraRight; float _pad3;
+//
+//     glm::vec2 screenSize; glm::vec2 _pad4;
+//
+//     glm::vec3 objectPos; float objectRadius;
+// };
 
 struct PixelResult {
     // 用于储存每个像素的计算结果

@@ -10,7 +10,7 @@ struct PixelResult {
     vec4 finalColor;
     // Compute Shader 计算出的击中点位置（用于深度测试）
     vec4 hitPosition_and_padding;
-    // ... 其他数据 ...
+    vec4 pathLength_and_padding;
 };
 
 
