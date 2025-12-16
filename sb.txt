@@ -30,3 +30,5 @@
 等待前一帧完成并获取swapChain图像，然后更新ubo数据，下面再清除上一帧的命令，再调用recordCommandBuffer，具体行为是vkBeginCommandBuffer → vkCmdDispatch → vkCmdPipelineBarrier → vkCmdDraw → vkEndCommandBuffer，随后将命令提交到队列，这会传递信号量和fence，并启动GPU工作，最后将渲染结果呈现到屏幕。
 
 更改窗口大小必须重建管线，因为ssbo大小会变。
+
+JIN TIAN YE SHI SHEN ME DOU XIE BU XIA QU DE YI TIAN.
