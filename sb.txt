@@ -2,7 +2,7 @@
 全tm超雄司机
 
 神人学校，周天早晨上课，周一 6:45 集合。到底要干嘛我服了
-
+---------------------------------------------------------------------------------------
 数分学得好累啊。怎么那么难。感觉已经写不动了。
 我想想，创建描述符、ubo和ssbo、管线、同步信号量，然后创建命令缓冲区。进入主循环开始绘制，接着是comp从ubo读取数据，计算后写到ssbo，随后vert从ssbo读取数据连接顶点，并将计算结果放到vertex缓冲区，然后是管线开始组装图元、裁剪，最后是光栅化。总感觉哪里怪怪的。但是说不出哪里奇怪，问一下AI吧。
 
@@ -30,5 +30,28 @@
 等待前一帧完成并获取swapChain图像，然后更新ubo数据，下面再清除上一帧的命令，再调用recordCommandBuffer，具体行为是vkBeginCommandBuffer → vkCmdDispatch → vkCmdPipelineBarrier → vkCmdDraw → vkEndCommandBuffer，随后将命令提交到队列，这会传递信号量和fence，并启动GPU工作，最后将渲染结果呈现到屏幕。
 
 更改窗口大小必须重建管线，因为ssbo大小会变。
-
+---------------------------------------------------------------------------------------
 JIN TIAN YE SHI SHEN ME DOU XIE BU XIA QU DE YI TIAN.
+---------------------------------------------------------------------------------------
+同上
+
+Clear Color (清除颜色)：在绘制循环里，vkCmdBeginRenderPass 的 VkRenderPassBeginInfo 中必须设置正确的 pClearValues。既然 loadOp 是 VK_ATTACHMENT_LOAD_OP_CLEAR，如果不提供清除值，背景可能会出现随机的花屏。
+SSBO 屏障位置：确保 vkCmdPipelineBarrier（SSBO 的同步）放在 vkCmdBeginRenderPass 之前。因为 RenderPass 内部不能进行这种类型的缓冲区屏障同步。
+
+虽然代码没问题，但既然你正在回顾流程，这里有几个关键细节需要你记在心里，防止后续调试时“踩坑”：
+	1. 分辨率的一致性（极其重要！）
+		问题：你的 GRRT 计算是在 Compute Shader 中完成的，它将结果写入 SSBO。你的 SSBO 大小应该是根据 width * height 分配的。
+		注意：在 recordCommandBuffer 记录 vkCmdDispatch 时，你使用的线程组数量（groupCount）必须和这里的 swapChainImageExtent.width/height 完全对齐。
+		后果：如果 SSBO 的大小和 Framebuffer 的分辨率不一致，你的顶点着色器（fullscreen.vert）在通过像素坐标查找 SSBO 索引时就会发生越界或画面错位。
+	2. 窗口缩放后的重建当窗口大小改变时，你需要调用 recreateSwapChain。在这个过程中，你会依次重新调用 createImageViews、createRenderPass 和 这个 createFrameBuffers。
+		特别注意：由于你的 SSBO 也是根据分辨率创建的，所以在窗口缩放时，SSBO 也必须重新创建，并更新描述符集（Descriptor Sets）。
+	3. 这里的 layers = 1对于普通的 2D 渲染（即使是渲染黑洞），layers 保持 1 是正确的。只有在做 VR（左右眼双层）或立体渲染时才会改动这个值。
+
+
+
+
+
+
+
+
+

@@ -236,6 +236,7 @@ private:
     void createLogicDevice();
     void createSwapChain();
     void createImageView();
+    // 这个还没改
     void createRenderPass();
     void createDescriptorSetLayout();
     void createGraphicsPipeline();

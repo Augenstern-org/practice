@@ -64,7 +64,7 @@ void vk::initWindow() {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     window = glfwCreateWindow(appWindowInfo.width, appWindowInfo.height, appWindowInfo.title, nullptr, nullptr);
     glfwSetWindowUserPointer(window, this);
-    // glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 }
 
 void vk::initVulkan() {
@@ -77,10 +77,10 @@ void vk::initVulkan() {
     createImageView();
     createRenderPass();
     createDescriptorSetLayout();
+    createComputePipeline();
     createGraphicsPipeline();
     createFrameBuffers();
     createCommandPool();
-    createComputePipeline();
     createUniformBuffers();
     createShaderStorageBuffers();
     createDescriptorPool();
@@ -533,8 +533,8 @@ void vk::createGraphicsPipeline() {
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float) swapChainImageExtent.width;
-    viewport.height = (float) swapChainImageExtent.height;
+    viewport.width = static_cast<float>(swapChainImageExtent.width);
+    viewport.height = static_cast<float>(swapChainImageExtent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -1014,6 +1014,9 @@ void vk::createSyncObjects() {
             throw std::runtime_error("failed to create semaphores!");
             }
     }
+}
+
+void vk::draw() {
 }
 
 bool vk::isPhysicalDeviceSuitable(VkPhysicalDevice c_device) {
