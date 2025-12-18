@@ -46,7 +46,9 @@ SSBO 屏障位置：确保 vkCmdPipelineBarrier（SSBO 的同步）放在 vkCmdB
 	2. 窗口缩放后的重建当窗口大小改变时，你需要调用 recreateSwapChain。在这个过程中，你会依次重新调用 createImageViews、createRenderPass 和 这个 createFrameBuffers。
 		特别注意：由于你的 SSBO 也是根据分辨率创建的，所以在窗口缩放时，SSBO 也必须重新创建，并更新描述符集（Descriptor Sets）。
 	3. 这里的 layers = 1对于普通的 2D 渲染（即使是渲染黑洞），layers 保持 1 是正确的。只有在做 VR（左右眼双层）或立体渲染时才会改动这个值。
-
+---------------------------------------------------------------------------------------
+番看完了，好无聊啊。
+我是不是应该找点别人的vulkan项目学习一下？
 
 
 
