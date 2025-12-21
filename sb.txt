@@ -53,6 +53,20 @@ SSBO 屏障位置：确保 vkCmdPipelineBarrier（SSBO 的同步）放在 vkCmdB
 haolei
 ---------------------------------------------------------------------------------------
 开始学习别人的工程了，最近可能不会写什么代码（虽然在这之前也没写就是了）。
+---------------------------------------------------------------------------------------
+Introduction "Hello everyone. Today I want to share a frightening experience that happened during my third year of junior. It was a normal weekend, but a simple chore almost cost me my sight."
+
+Body "At the beginning, our kitchen sink was blocked by grease. I decided to fix it using caustic soda (sodium hydroxide). Initially, everything went smoothly. As the soda dissolved, the pipe began to clear. I felt proud and gradually let my guard down.
+
+However, a disaster was waiting. Suddenly, the solution started to boil because the chemical reaction released a huge amount of heat. I wasn't wearing safety goggles. Immediately after that, the boiling, concentrated alkali splashed directly into my eyes.
+
+At that moment, intense pain overwhelmed my mind, followed by pure terror. I knew how dangerous alkali burns were. Without wasting a second, I forced my eyes open despite the pain, grabbed a bottle of vinegar, and rushed to the bathroom for a quick wash.
+
+Next, my mother drove me to the hospital as fast as possible. We even ran several red lights because every second counted. After we arrived, the ER doctor washed my eyes with saline for a long time.
+
+Finally, after a check-up, the doctor said: 'It’s lucky you did that initial wash, otherwise it would have been too late.' The next day, I went back for a follow-up, and thankfully, my vision was not permanently damaged."
+
+Conclusion "In the end, this experience left a deep shadow on me. For two years, I had to fight my fear of boiling water. But more importantly, it taught me a vital lesson: Never let your guard down when dealing with danger, no matter how smoothly things seem to be going. Thank you."
 
 
 
