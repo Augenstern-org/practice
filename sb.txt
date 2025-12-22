@@ -67,6 +67,10 @@ Next, my mother drove me to the hospital as fast as possible. We even ran severa
 Finally, after a check-up, the doctor said: 'It’s lucky you did that initial wash, otherwise it would have been too late.' The next day, I went back for a follow-up, and thankfully, my vision was not permanently damaged."
 
 Conclusion "In the end, this experience left a deep shadow on me. For two years, I had to fight my fear of boiling water. But more importantly, it taught me a vital lesson: Never let your guard down when dealing with danger, no matter how smoothly things seem to be going. Thank you."
+---------------------------------------------------------------------------------------
+上面那个是作业，似了。
+https://zhuanlan.zhihu.com/p/617134185
+https://docs.vulkan.net.cn/samples/latest/samples/performance/pipeline_cache/README.html
 
 
 
