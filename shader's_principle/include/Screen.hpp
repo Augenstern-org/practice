@@ -6,24 +6,41 @@
 #define SHADER_S_PRINCIPLE_SCREEN_HPP
 
 #include <vector>
-#include <iostream>
-#include "Image.hpp"
+#include <GLFW/glfw3.h>
+#include "Texture.hpp"
+#include "Buffers.hpp"
 
 class Screen {
 public:
-    Screen(int w, int h, const char fill = ' ') : width(w), height(h), buffer(w * h, fill){}
-    ~Screen() =default;
+    Screen(int w, int h) : width(w), height(h) {
+        if (!glfwInit()) {
+            windows_status = 0;
+            return;
+        }
 
-    const size_t index(size_t x, size_t y) const;
-    // const bool setPixel(int x, int y, char c);
-    // const char getPixel(int x, int y) const;
-    // void display() const;
-    void display(const Image image);
-    void clean(char fill = ' ');
+        glGenTextures(1, &textureID);
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        // 设置纹理参数（保持像素原样，不模糊）
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+        window_handle = glfwCreateWindow(w, h, "软渲染器", NULL, NULL);
+        glfwMakeContextCurrent(window_handle);
+        windows_status = 1;
+    }
+
+    void present(FrameBuffers fb = frame_buffers);
+    const bool get_windows_status() const;
+    GLFWwindow* get_window_handle() const;
+
+    static FrameBuffers frame_buffers;
 
 private:
-    size_t width;           size_t height;
-    std::vector<char> buffer;
+    int width, height;
+    GLFWwindow* window_handle;
+    unsigned int textureID; // OpenGL 纹理对象编号
+    bool windows_status;
 
 };
 
