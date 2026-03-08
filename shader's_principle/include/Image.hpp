@@ -6,7 +6,8 @@
 #define SHADER_S_PRINCIPLE_IMAGE_HPP
 
 
-class Image {
+struct Image {
+
 };
 
 

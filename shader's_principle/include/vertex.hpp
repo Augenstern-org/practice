@@ -18,6 +18,7 @@ public:
     // 用数组初始化顶点
     template<size_t len>
     explicit Vertex(const int (&init_array)[len]) : pos(init_array, init_array + len){}
+    ~Vertex() =default;
 
     // 获取顶点坐标
     const std::vector<int>* get_pos() const;
