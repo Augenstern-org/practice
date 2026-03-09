@@ -6,8 +6,11 @@
 #define SHADER_S_PRINCIPLE_VERTSHADER_HPP
 
 #include <glm/glm.hpp>
+#include "Data.hpp"
 
 class VertShader {
+public:
+    void vertReader(VertBuffer buffer);
 
 };
 

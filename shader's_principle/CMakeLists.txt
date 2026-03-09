@@ -8,15 +8,12 @@ find_package(glm CONFIG REQUIRED)
 
 
 add_executable(shader_s_principle src/main.cpp
-        include/vertex.hpp
         src/Screen.cpp
         include/Screen.hpp
-        src/Texture.cpp
-        include/Texture.hpp
         src/VertShader.cpp
         include/VertShader.hpp
-        src/Buffers.cpp
-        include/Buffers.hpp)
+        src/Data.cpp
+        include/Data.hpp)
 
 target_link_libraries(shader_s_principle PRIVATE
         glfw

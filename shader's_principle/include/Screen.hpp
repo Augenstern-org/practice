@@ -5,10 +5,9 @@
 #ifndef SHADER_S_PRINCIPLE_SCREEN_HPP
 #define SHADER_S_PRINCIPLE_SCREEN_HPP
 
-#include <vector>
+// #include <vector>
 #include <GLFW/glfw3.h>
-#include "Texture.hpp"
-#include "Buffers.hpp"
+#include "Data.hpp"
 
 class Screen {
 public:
@@ -30,11 +29,11 @@ public:
         windows_status = 1;
     }
 
-    void present(FrameBuffers fb = frame_buffers);
+    void present(FrameBuffer fb);
     const bool get_windows_status() const;
     GLFWwindow* get_window_handle() const;
 
-    static FrameBuffers frame_buffers;
+    FrameBuffer frame_buffer;
 
 private:
     int width, height;
