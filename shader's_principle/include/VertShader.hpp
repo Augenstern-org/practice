@@ -8,10 +8,19 @@
 #include <glm/glm.hpp>
 #include "Data.hpp"
 
-class VertShader {
-public:
-    void vertReader(VertBuffer buffer);
+struct SimpleShader {
+    // 顶点着色器：纯计算逻辑
+    static VertOut vertex_shader(const VertInSoA& in, const UBO& uni) {
+        VertOut out;
+        out.pos = uni.model
+        out.uv = in.uv;
+        return out;
+    }
 
+    // 片元着色器
+    static glm::vec3 fragment_shader(const VertOut& interpolated, const Texture& tex) {
+        return tex.sample(interpolated.uv);
+    }
 };
 
 

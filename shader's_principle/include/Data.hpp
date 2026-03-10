@@ -8,6 +8,10 @@
 #include <glm/glm.hpp>
 #include <vector>
 
+enum VertexShaderBindingDescription {
+    VS_TRIPLE
+};
+
 struct Color {
     Color() {
         r = 0.0f;
@@ -26,6 +30,8 @@ struct Vertex {
     pos(x, y, z), color(r, g, b){}
     glm::vec3 pos;
     Color color;
+
+    static VertexShaderBindingDescription binding_description();
 };
 
 class Texture {
@@ -39,8 +45,13 @@ public:
     Color sample(float u, float v);
 };
 
+struct UBO {
+    alignas(16) glm::mat4 model;
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
+};
 
-struct VertBuffer {
+struct VertInSoA {
     std::vector<double> x_pos;
     std::vector<double> y_pos;
     std::vector<float> r;
@@ -48,7 +59,11 @@ struct VertBuffer {
     std::vector<float> b;
 };
 
-struct VertOut : public VertBuffer{};
+struct VertOut {
+    glm::vec4 pos;
+    glm::vec3 color;
+};
+
 struct RasterizerIn : public VertOut{};
 
 struct RasterizerOut {
