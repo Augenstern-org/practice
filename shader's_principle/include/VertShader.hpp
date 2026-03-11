@@ -8,19 +8,24 @@
 #include <glm/glm.hpp>
 #include "Data.hpp"
 
-struct SimpleShader {
-    // 顶点着色器：纯计算逻辑
-    static VertOut vertex_shader(const VertInSoA& in, const UBO& uni) {
-        VertOut out;
-        out.pos = uni.model
-        out.uv = in.uv;
-        return out;
+class Shader {
+
+};
+
+class VertShader {
+    VertShader(VertexShaderBindingDescription createInfo) {
+        // 从 Layout 中读取数据布局
+        // shader 需要知晓从哪里读取数据（传入指针）
+        // 总共三个指针，最多四个（第四个是 DescriptorSet*）
+        // UBO 指针指向所需的 mvp 矩阵
+        // VertIn 指针指向需要计算的顶点
+        // VertOut 指针指向 VS_Post 缓冲区
+    }
+    // 计算逻辑
+    static VertOut vertex_shader(/* 这里需要重新设计参数 */) {
+        // 遍历计算每一个顶点缓冲区的顶点
     }
 
-    // 片元着色器
-    static glm::vec3 fragment_shader(const VertOut& interpolated, const Texture& tex) {
-        return tex.sample(interpolated.uv);
-    }
 };
 
 

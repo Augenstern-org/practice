@@ -89,4 +89,87 @@ struct FrameBuffer : public FragBuffer {
 };
 
 
+
+enum class DescriptorType {
+    UNIFORM_BUFFER,    // 常量缓冲区 (MVP 矩阵等)
+    STORAGE_BUFFER,    // 结构化缓冲区 (大量顶点/实例数据)
+    COMBINED_IMAGE_SAMPLER, // 纹理 + 采样器
+    INPUT_ATTACHMENT   // 帧缓存输入
+};
+
+struct DescriptorSetLayoutBinding {
+    uint32_t binding;           // 对应 Shader 中的 layout(binding = N)
+    DescriptorType descriptorType;
+    uint32_t descriptorCount;   // 支持数组（例如：Texture2D textures[4]）
+    uint32_t stageFlags;        // 哪些阶段可见（顶点/像素）
+};
+
+struct DescriptorSetLayout {
+    // 使用动态数组或固定大小数组存放绑定规则
+    std::vector<DescriptorSetLayoutBinding> bindings;
+
+    // 预计算总大小，方便管线直接分配内存
+    uint32_t totalSizeInBytes;
+};
+
+struct DescriptorPoolSize {
+    DescriptorType type;
+    uint32_t descriptorCount;
+};
+
+struct DescriptorSet {
+    void** basePtr; // 指向池中分配给它的起始地址
+    const DescriptorSetLayout* layout;
+
+    // 把真正的 Buffer 指针塞进池子里
+    void UpdateBinding(uint32_t binding, void* resourcePtr) {
+        // 通过 Layout 查到对应的偏移量，然后写入
+        // 假设 Layout 里 binding 是连续的
+        basePtr[binding] = resourcePtr;
+    }
+};
+
+class DescriptorPool {
+private:
+    // 模拟描述符，存一堆指针或句柄
+    std::vector<void*> poolData;
+    uint32_t nextFreeSlot = 0;
+
+public:
+    // 初始化时直接分配一大块，避免管线运行中途申请内存
+    DescriptorPool(uint32_t maxSets, const std::vector<DescriptorPoolSize>& sizes) {
+        uint32_t totalCount = 0;
+        for (auto& s : sizes) totalCount += s.descriptorCount;
+        poolData.resize(totalCount, nullptr);
+    }
+
+    bool AllocateDescriptorSet(const DescriptorSetLayout& layout, DescriptorSet& outSet) {
+        // 内存分配器
+        // 根据 Layout 的需求，从 poolData 中切出一块给 DescriptorSet
+        uint32_t required = layout.bindings.size();
+        if (nextFreeSlot + required > poolData.size()) return false;
+
+        outSet.basePtr = &poolData[nextFreeSlot];
+        nextFreeSlot += required;
+        return true;
+    }
+
+    void Reset() {
+        nextFreeSlot = 0; // 每一帧结束直接重置指针
+    }
+};
+
+struct VertShaderLayout {
+
+};
+
+struct VertShaderCreateInfo {
+    // 从 Layout 中读取数据布局
+    // shader 需要知晓从哪里读取数据（传入指针）
+    // 总共三个指针，最多四个（第四个是 DescriptorSet*）
+    // UBO 指针指向所需的 mvp 矩阵
+    // VertIn 指针指向需要计算的顶点
+    // VertOut 指针指向 VS_Post 缓冲区
+};
+
 #endif //SHADER_S_PRINCIPLE_DATA_HPP
