@@ -30,7 +30,7 @@ public:
     }
 
     void present(FrameBuffer fb);
-    const bool get_windows_status() const;
+    bool get_windows_status() const;
     GLFWwindow* get_window_handle() const;
 
     FrameBuffer frame_buffer;

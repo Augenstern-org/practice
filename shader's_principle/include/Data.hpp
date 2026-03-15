@@ -8,6 +8,8 @@
 #include <glm/glm.hpp>
 #include <vector>
 
+#define MAX_ATTRIBS 16
+
 enum VertexShaderBindingDescription {
     VS_TRIPLE
 };
@@ -32,6 +34,17 @@ struct Vertex {
     Color color;
 
     static VertexShaderBindingDescription binding_description();
+};
+
+struct VertexAttribute {
+    uint32_t location;    // 对应 Shader 里的 layout(location = 0)
+    uint32_t offset;      // 在单个顶点数据块中的偏移量
+};
+
+struct VertexInputLayout {
+    uint32_t stride;      // 一个顶点的总字节数（比如 32 字节）
+    std::vector<VertexAttribute> attributes;
+    // 当管线读取第 i 个顶点时，它的地址是 buffer_ptr + i * stride + attribute.offset
 };
 
 class Texture {
@@ -64,7 +77,7 @@ struct VertOut {
     glm::vec3 color;
 };
 
-struct RasterizerIn : public VertOut{};
+// struct RasterizerIn : public VertOut{};
 
 struct RasterizerOut {
     RasterizerOut(const int w, const int h) {
@@ -80,15 +93,13 @@ struct RasterizerOut {
     std::vector<float> b;
 };
 
-struct FragBuffer : public RasterizerOut {
+// struct FragBuffer : public RasterizerOut {
+//     using RasterizerOut::RasterizerOut;
+// };
+
+struct FrameBuffer : public RasterizerOut {
     using RasterizerOut::RasterizerOut;
 };
-
-struct FrameBuffer : public FragBuffer {
-    using FragBuffer::FragBuffer;
-};
-
-
 
 enum class DescriptorType {
     UNIFORM_BUFFER,    // 常量缓冲区 (MVP 矩阵等)
@@ -163,6 +174,18 @@ struct VertShaderLayout {
 
 };
 
+// 输入给顶点着色器的数据
+struct VertexShaderInput {
+    const void* attributes[MAX_ATTRIBS]; // 已经根据 Offset 算好的各个属性指针
+    uint32_t vertexID;
+};
+
+
+
+// 函数指针定义
+using VertShaderFunc = void(*)(const VertexShaderInput& in, VertOut& out, const void** uniforms);
+using RasterizerFunc = bool(*)(const VertOut& in, glm::vec4& outColor, const void** uniforms);
+
 struct VertShaderCreateInfo {
     // 从 Layout 中读取数据布局
     // shader 需要知晓从哪里读取数据（传入指针）
@@ -170,6 +193,39 @@ struct VertShaderCreateInfo {
     // UBO 指针指向所需的 mvp 矩阵
     // VertIn 指针指向需要计算的顶点
     // VertOut 指针指向 VS_Post 缓冲区
+};
+
+struct PipelineLayout {
+    // 比如：Set 0 是变换矩阵，Set 1 是纹理
+    std::vector<DescriptorSetLayout*> setLayouts;
+
+    // 还可以加一个 Push Constant (类似 Vulkan)
+    // 用于快速传几个 float，不需要绑定 Buffer
+    uint32_t pushConstantSize;
+};
+
+struct PipelineCreateInfo {
+    // 1. Shaders
+    VertShaderFunc   vs;
+    RasterizerFunc fs;
+
+    // 2. Vertex Layout
+    VertexInputLayout  vertexLayout;
+
+    // 3. Resource Layout
+    DescriptorSetLayout* descriptorLayouts;
+    uint32_t             layoutCount;
+
+    // 4. Rasterization State
+    // struct {
+    //     CullMode cullMode = CullMode::Back;
+    //     FillMode fillMode = FillMode::Solid;
+    //     bool     depthTestEnable = true;
+    // } rasterState;
+
+    // 5. Output State
+    bool blendEnable = false;
+    // PixelFormat colorFormat = PixelFormat::RGBA8;
 };
 
 #endif //SHADER_S_PRINCIPLE_DATA_HPP

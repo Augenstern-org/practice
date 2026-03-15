@@ -30,7 +30,7 @@ void Screen::present(FrameBuffer fb) {
     glfwPollEvents();
 }
 
-const bool Screen::get_windows_status() const {
+bool Screen::get_windows_status() const {
     return windows_status;
 }
 
