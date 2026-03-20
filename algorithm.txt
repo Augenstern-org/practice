@@ -1,0 +1,29 @@
+kmp:
+class Solution {
+public:
+    int strStr(string haystack, string needle) {
+        if (needle.empty()) return 0;
+        int n = haystack.size(), m = needle.size();
+        
+        // 1. 构建 next 数组
+        vector<int> next(m, 0);
+        for (int i = 1, j = 0; i < m; i++) {
+            while (j > 0 && needle[i] != needle[j]) j = next[j - 1];
+            if (needle[i] == needle[j]) j++;
+            next[i] = j;
+        }
+
+        // 2. 开始匹配
+        for (int i = 0, j = 0; i < n; i++) {
+            // 如果不匹配，j 按照 next 数组回退
+            while (j > 0 && haystack[i] != needle[j]) j = next[j - 1];
+            // 如果匹配，j 后移
+            if (haystack[i] == needle[j]) j++;
+            // 匹配成功，返回起始位置
+            if (j == m) return i - m + 1;
+        }
+
+        return -1;
+    }
+};
+##################################################################
