@@ -26,7 +26,7 @@ using namespace std;
 
 class Solution {
 public:
-    int find(string s) {
+    int myAtoi(string s) {
         int i = 0;
         int n = s.length();
         int sign = 1;
@@ -114,7 +114,7 @@ int main() {
     cout << "========== " << templateName << " 测试 ==========" << endl;
 
     for (int i = 0; i < sn.size(); ++i) {
-        int result = sol.find(inputs[i]);
+        int result = sol.myAtoi(inputs[i]);
 
         cout << "Test Case " << i + 1 << " (" << sn[i] << "):" << endl;
         cout << "  Input:    \"" << inputs[i] << "\"" << endl;
