@@ -1,8 +1,9 @@
 //
 // Created by Neuroil on 2025/11/26.
 //
-#include "vk.hpp"
+#include "vk.h"
 
+#include <filesystem>
 #include <queue>
 
 #ifdef NDEBUG
@@ -12,7 +13,7 @@ const bool enableValidationLayers = true;
 #endif
 
 // 飞行帧
-constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+constexpr int MAX_FRAMES_IN_FLIGHT = 3;
 
 // 验证层设置
 const std::vector<const char*> validationLayers = {
@@ -94,13 +95,39 @@ void vk::mainLoop() {
         glfwPollEvents();
         draw();
     }
+    // 等待所有提交给 GPU 的任务彻底干完
+    vkDeviceWaitIdle(device);
+    // 然后再执行后续的 cleanup()...
 }
 
 void vk::cleanup() {
 
     cleanupSwapChain();
 
+    vkDestroyPipeline(device, graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(device, graphicPipelineLayout, nullptr);
+    vkDestroyPipeline(device, computePipeline, nullptr);
+    vkDestroyPipelineLayout(device, computePipelineLayout, nullptr);
+
     vkDestroyRenderPass(device, renderPass, nullptr);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroyBuffer(device, uniformBuffers[i], nullptr);
+        vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+        vkDestroyBuffer(device, shaderStorageBuffers[i], nullptr);
+        vkFreeMemory(device, shaderStorageBuffersMemory[i], nullptr);
+    }
+
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
+        vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
+        vkDestroyFence(device, inFlightFences[i], nullptr);
+    }
+
+    vkDestroyCommandPool(device, commandPool, nullptr);
 
     vkDestroyDevice(device, nullptr);
     if (enableValidationLayers) {
@@ -491,8 +518,8 @@ void vk::createDescriptorSetLayout() {
 }
 
 void vk::createGraphicsPipeline() {
-    auto vertShaderCode = readFile("~/code/practice/Blackhole_prac/src/shader/vert.spv");
-    auto fragShaderCode = readFile("~/code/practice/Blackhole_prac/src/shader/frag.spv");
+    auto vertShaderCode = readFile("/home/neuroil/code/practice/Blackhole_prac/src/shader/spv/shader.vert.spv");
+    auto fragShaderCode = readFile("/home/neuroil/code/practice/Blackhole_prac/src/shader/spv/shader.frag.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -722,7 +749,7 @@ void vk::createCommandPool() {
 
 void vk::createComputePipeline() {
     // 专用于计算的管线
-    auto computeShaderCode = readFile("~/code/practice/Blackhole_prac/src/shader/shader.comp.spv");
+    auto computeShaderCode = readFile("/home/neuroil/code/practice/Blackhole_prac/src/shader/spv/shader.comp.spv");
     VkShaderModule computeShaderModule = createShaderModule(computeShaderCode);
 
     VkPipelineShaderStageCreateInfo computeShaderStageInfo{};
@@ -982,8 +1009,21 @@ void vk::createDescriptorSets() {
     }
 }
 
+// void vk::createCommandBuffers() {
+//     commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+//     VkCommandBufferAllocateInfo allocateInfo{};
+//     allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+//     allocateInfo.commandPool = commandPool;
+//     allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+//     allocateInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
+//
+//     if (vkAllocateCommandBuffers(device, &allocateInfo, commandBuffers.data()) != VK_SUCCESS) {
+//         throw std::runtime_error("failed to allocate command buffers!");
+//     }
+// }
 void vk::createCommandBuffers() {
-    commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    commandBuffers.resize(MAX_FRAMES_IN_FLIGHT); // 建议与 In Flight 帧数对齐
+
     VkCommandBufferAllocateInfo allocateInfo{};
     allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocateInfo.commandPool = commandPool;
@@ -992,6 +1032,62 @@ void vk::createCommandBuffers() {
 
     if (vkAllocateCommandBuffers(device, &allocateInfo, commandBuffers.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate command buffers!");
+    }
+
+    // --- 开始录制命令 (这是你目前漏掉的部分) ---
+    for (size_t i = 0; i < commandBuffers.size(); i++) {
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo) != VK_SUCCESS) {
+            throw std::runtime_error("failed to begin recording command buffer!");
+        }
+
+        // 配置 Render Pass 启动信息
+        VkRenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass = renderPass;
+        renderPassInfo.framebuffer = swapChainFramebuffers[i]; // 对应当前交换链图像的 Framebuffer
+        renderPassInfo.renderArea.offset = {0, 0};
+        renderPassInfo.renderArea.extent = swapChainImageExtent;
+
+        // 设置背景清除颜色（深蓝色，方便确认画面动了）
+        VkClearValue clearColor = {{{0.0f, 0.0f, 0.2f, 1.0f}}};
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = &clearColor;
+
+        // 1. 开启 Render Pass
+        vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+            // 2. 绑定图形管线
+        vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = (float) swapChainImageExtent.width;
+        viewport.height = (float) swapChainImageExtent.height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(commandBuffers[i], 0, 1, &viewport); // 必须手动调用
+
+        VkRect2D scissor{};
+        scissor.offset = {0, 0};
+        scissor.extent = swapChainImageExtent;
+        vkCmdSetScissor(commandBuffers[i], 0, 1, &scissor);   // 必须手动调用
+
+        // 然后才是绘制
+        vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+
+            // 3. 执行绘制命令 (3个顶点，1个实例)
+            // 注意：因为我们要画硬编码三角形，这里不需要绑定 VertexBuffer
+            vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+
+        // 4. 结束 Render Pass
+        vkCmdEndRenderPass(commandBuffers[i]);
+
+        if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to record command buffer!");
+        }
     }
 }
 
@@ -1017,6 +1113,47 @@ void vk::createSyncObjects() {
 }
 
 void vk::draw() {
+    // 1. 等待上一帧完成
+    vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+
+    // 2. 从交换链获取一张图像
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+    // 3. 重置 Fence 并提交命令缓冲
+    vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+
+    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    if (vkQueueSubmit(computeGraphicQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to submit draw command buffer!");
+    }
+
+    // 4. 将图像呈递回屏幕
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &swapChain;
+    presentInfo.pImageIndices = &imageIndex;
+
+    vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 bool vk::isPhysicalDeviceSuitable(VkPhysicalDevice c_device) {
@@ -1092,8 +1229,9 @@ std::vector<char> vk::readFile(const std::string &filename) {
     // 从文件末尾开始读取的优点是，可以使用读取位置来确定文件的大小并分配缓冲区
 
     if (!file.is_open()) {
-        // auto c_dir = std::filesystem::current_path();
-        // std::cout << "Current Path: " << c_dir << std::endl;
+        auto c_dir = std::filesystem::current_path();
+        std::cout << "Current Path: " << c_dir << std::endl;
+        std::cerr << "DEBUG: [" << filename << "]" << std::endl; // 看看括号里有没有多余空格
         throw std::runtime_error("failed to open the file!");
     }
 
@@ -1271,6 +1409,9 @@ void vk::DestroyDebugUtilsMessengerEXT(VkInstance instance,
 }
 
 void vk::cleanupSwapChain() {
+    for (auto framebuffer : swapChainFramebuffers) {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
     for (auto imageView : swapChainImageViews) {
         vkDestroyImageView(device, imageView, nullptr);
     }

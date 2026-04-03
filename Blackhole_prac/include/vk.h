@@ -161,7 +161,7 @@ private:
     VkDevice device;
     VkQueue computeGraphicQueue;
     VkQueue presentQueue;
-    VkQueue computeQueue;
+    // VkQueue computeQueue;
     VkSwapchainKHR swapChain;
     VkExtent2D swapChainExtent;
     VkFormat swapChainImageFormat;

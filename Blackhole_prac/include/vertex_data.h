@@ -5,7 +5,7 @@
 #ifndef BLACK_HOLE_PRAC_VERTEX_DATA_HPP
 #define BLACK_HOLE_PRAC_VERTEX_DATA_HPP
 
-#include "vk.hpp"
+#include "vk.h"
 
 /*
 const std::vector<Vertex> vertices = {
