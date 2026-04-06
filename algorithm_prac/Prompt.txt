@@ -1,5 +1,6 @@
 [指令开始]
 请你编写一个 C++ 测试模板。
+首先创建一个新文件，文件名称为{Solution类中函数的名字}.cpp。
 
 1. 注释要求：
     文件最上方添加：// Created by Neuroil on YYYY/MM/DD（请使用当前日期）。
