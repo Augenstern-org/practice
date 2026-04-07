@@ -88,6 +88,32 @@ class Solution {
     }
 };
 
+class Solution2 {
+  public:
+    int trap(vector<int>& height) {
+        int n = height.size();
+        if (n <= 2) return 0;
+
+        int left = 0, right = n - 1;
+        int left_max = 0, right_max = 0;
+        int area = 0;
+
+        while (left < right) {
+            if (height[left] < height[right]) {
+                if (height[left] >= left_max) left_max = height[left];
+                else area += left_max - height[left];
+                ++left;
+            } else {
+                if (height[right] >= right_max) right_max = height[right];
+                else area += right_max - height[right];
+                --right;
+            }
+        }
+
+        return area;
+    }
+};
+
 // 测试场景描述向量
 vector<string> sn = {
     "基础测试：简单山谷形状", "边界测试：单峰形状", "复杂测试：多峰多谷",
@@ -96,7 +122,7 @@ vector<string> sn = {
 };
 
 int main() {
-    Solution solution;
+    Solution2 solution;
 
     cout << "========== 接雨水测试模板 ==========" << endl << endl;
 
