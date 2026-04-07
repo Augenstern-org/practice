@@ -29,7 +29,6 @@ n == height.length
 尝试设计一个时间复杂度为 O(n) 的解决方案。
 */
 
-// api: sk-f89a020f07054b2eac8bb52f07491647
 
 #include <iomanip>
 #include <iostream>
