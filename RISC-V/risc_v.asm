@@ -46,3 +46,179 @@ get_ptr:
         lw      s0,24(sp)    # 恢复 s0
         addi    sp,sp,32     # 释放栈空间
         jr      ra           # 返回
+
+# Compute and print the smallest number
+compute_and_print:
+
+.data   # data at 0x10010000
+        n:      .word   6
+        x:      .word   5, 8, 12, 0, 4, 4
+
+.text
+        addi    sp,sp,-32
+        sw      ra,28(sp)
+        sw      s0,24(sp)
+        addi    s0,sp,32
+        lw      s0,n
+        la      s1,x
+        addi    t1,zero,1
+        lw      a0,0(s1)
+LOOP:
+        bge     t1,s0,DONE
+        slli    t2,t1,2
+        addi    t2,t2,s0
+        lw      t3,0(t2)
+        bge     t3,a0,NEXT
+        addi    a0,zero,t3
+NEXT:
+        addi    t1,t1,1
+        jal     zero,LOOP
+DONE:
+        addi    a7,zero,1
+        ecall
+        lw      ra,28(sp)
+        lw      s0,24(sp)
+        addi    sp,sp,32
+        jal     zero,ra
+
+# Count how many times y appear in x
+count_y_in_x:
+.data
+        y:      .word   4
+        n:      .word   6
+        x:      .word   5, 8, 12, 0, 4, 4
+
+.text
+        addi    sp,sp,-32
+        sw      ra,28(sp)
+        sw      s0,24(sp)
+        lw      s0,y  
+        lw      s1,n
+        la      s2,x
+        addi    t1,zero,1
+        addi    a0,zero,0
+LOOP:
+        bge     t1,s0,DONE
+        slli    t2,t1,2
+        addi    t2,t2,s0
+        lw      t3,0(t2)
+        bne     t3,y,NEXT
+        addi    a0,a0,1
+NEXT:
+        addi    t1,t1,1
+        jal     zero,LOOP
+DONE:
+        addi    a7,zero,1
+        ecall
+        lw      ra,28(sp)
+        lw      s0,24(sp)
+        addi    sp,sp,32
+        jal     zero,ra
+
+void count(int res, int a, std::vector<int>& vec){
+    for(auto n : vec) if(n == int) ++res;
+}
+
+# Print 1 if x == y 
+is_x_eqaul_to_y:
+.data
+        n:      .word   6
+        x:      .word   5,8,12,0,4,4
+        y:      .word   5,8,12,0,4,4
+
+.text
+        addi    sp,sp,-32
+        sw      ra,28(sp)
+        sw      s0,24(sp)
+        la      s0,n
+        lw      s0,0(s0)
+        la      s1,x 
+        la      s2,y 
+        addi    t0,zero,0
+        lw      t1,0(s1)
+        lw      t2,0(s2)
+        addi    a0,zero,1
+LOOP:
+        blt     s0,t0,DONE
+        slli    t3,t0,2
+        add     t1,s1,t3
+        lw      t1,0(t1)
+        add     t2,s2,t3
+        lw      t2,0(t2)
+        bne     t1,t2,SET 
+        jal     zero,LOOP
+SET:
+        addi    a0,zero,0
+        jal     zero,DONE
+DONE:
+        addi    a7,zero,1
+        ecall
+        lw      ra,28(sp)
+        lw      s0,24(sp)
+        addi    sp,sp,32
+        jal     zero,ra
+
+# Print x[i]
+print_xi:
+.data
+        i:      .word   3
+        n:      .word   6
+        x:      .word   50,8,12,0,4,4
+
+.text
+        addi    sp,sp,-32
+        sw      ra,28(sp)
+        sw      s0,24(sp)
+        la      s0,i
+        lw      s1,0(s0)
+        addi    t0,s0,8
+        slli    t1,s1,2
+        add     t0,t0,t1
+        lw      a0,0(t0)
+        addi    a7,zero,1
+        ecall
+        lw      ra,28(sp)
+        lw      s0,24(sp)
+        addi    sp,sp,32
+        jal     zero,ra
+
+# Is the number odd
+is_odd:
+.data
+        i:      .word   3
+
+.text
+        addi    sp,sp,-32
+        sw      ra,28(sp)
+        sw      s0,24(sp)
+        addi    s0,sp,32
+        la      s1,i
+        lw      t1,0(s1)    
+        andi    a0,t1,1
+        addi    a7,zero,1
+        ecall
+        lw      ra,28(sp)
+        lw      s0,24(sp)
+        addi    sp,sp,32
+        jal     zero,ra
+
+# Count the number of ones in the binary representation of x 
+count_1:
+.data
+        x:      .word   379
+.text  
+        la      t0,i
+        lw      s0,0(t0)
+        addi    s1,zero,32
+        addi    t0,zero,0
+        addi    a0,zero,0
+LOOP:
+        bge     t0,s1,DONE
+        srai    t1,s0,1
+        andi    t1,t1,1
+        add     a0,a0,t1
+DONE:
+        addi    a7,zero,1
+        ecall
+        addi    a7,zero,10
+        ecall
