@@ -1,4 +1,6 @@
 *
 !*.cpp
+!*.py
 !*.txt
 !.gitignore
+!correct
